@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polar Energy AI // Mission Command Deck (SIH 26061)</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <!-- TOP COMMAND BAR -->
+  <header class="command-nav">
+    <a href="index.html" class="nav-brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-text">
+        <span class="brand-name">POLAR ENERGY AI</span>
+        <span class="brand-sub">MISSION COMMAND // SIH 26061</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link">01 OVERVIEW</a></li>
+      <li><a href="dashboard.html" class="nav-link active">02 COMMAND DECK</a></li>
+      <li><a href="researcher.html" class="nav-link">03 SCIENCE SCHEDULER</a></li>
+      <li><a href="admin.html" class="nav-link">04 ADMIN CONSOLE</a></li>
+    </ul>
+
+    <div class="nav-status">
+      <select id="globalStationSelect" style="font-size:0.75rem; padding: 5px 10px;">
+        <option value="ST-01" selected>ST-01: Station Maitri</option>
+        <option value="ST-02">ST-02: Station Bharati</option>
+        <option value="ST-03">ST-03: Amundsen-Scott</option>
+        <option value="ST-04">ST-04: Concordia</option>
+      </select>
+      <span id="pillTemp" class="badge badge-info" style="font-size:0.72rem;">Temp: -28.0°C</span>
+      <span id="pillWind" class="badge badge-info" style="font-size:0.72rem;">Wind: 12.0 m/s</span>
+      <span id="pillSolar" class="badge badge-info" style="font-size:0.72rem;">Solar: 350 Lux</span>
+      <span id="liveClock" class="badge badge-info">UTC --:--:-- // POLAR</span>
+      <div id="badgeMode" class="badge badge-normal">
+        <span class="badge-dot"></span>
+        <span id="textMode">OPTIMAL DISPATCH</span>
+      </div>
+      <button id="btnResetLoads" class="btn" title="Restore all loads to active ONLINE state">
+        ↺ Restore
+      </button>
+      <button id="btnEmergencyShed" class="btn btn-danger" title="Emergency priority shedding of P2 and P3 assets">
+        🚨 Emergency Shed
+      </button>
+    </div>
+  </header>
+
+  <!-- APP CONTAINER -->
+  <main class="app-container">
+    <!-- PRIMARY KPI METRICS GRID -->
+    <div class="kpi-grid">
+      <!-- Solar Generation -->
+      <div class="kpi-card kpi-solar">
+        <div class="kpi-label">
+          <span>Bi-facial Solar</span>
+          <span class="kpi-icon">☀️</span>
+        </div>
+        <div class="kpi-value text-amber" id="kpiSolar">6.1 kW</div>
+        <div class="kpi-subtext">Sub-zero boost: +18.5%</div>
+      </div>
+
+      <!-- Wind Generation -->
+      <div class="kpi-card kpi-wind">
+        <div class="kpi-label">
+          <span>Aerodynamic Wind</span>
+          <span class="kpi-icon">💨</span>
+        </div>
+        <div class="kpi-value text-glacier" id="kpiWind">10.3 kW</div>
+        <div class="kpi-subtext">Betz limit cubic: 12.0 m/s</div>
+      </div>
+
+      <!-- Total Renewables -->
+      <div class="kpi-card kpi-battery">
+        <div class="kpi-label">
+          <span>Total Renewables</span>
+          <span class="kpi-icon">⚡</span>
+        </div>
+        <div class="kpi-value text-emerald" id="kpiRenewable">16.4 kW</div>
+        <div class="kpi-subtext">Zero carbon generation</div>
+      </div>
+
+      <!-- Station Load Demand -->
+      <div class="kpi-card kpi-demand">
+        <div class="kpi-label">
+          <span>Station Demand</span>
+          <span class="kpi-icon">🔌</span>
+        </div>
+        <div class="kpi-value" id="kpiDemand">25.1 kW</div>
+        <div class="kpi-subtext">Base Heat + Active Loads</div>
+      </div>
+
+      <!-- Secondary Diesel Genset -->
+      <div class="kpi-card kpi-gen">
+        <div class="kpi-label">
+          <span>Secondary Genset</span>
+          <span class="kpi-icon">⚙️</span>
+        </div>
+        <div class="kpi-value" id="kpiGen">0.0 kW</div>
+        <div class="kpi-subtext">Standby / Fuel Reserve</div>
+      </div>
+
+      <!-- Battery Reserve (BESS) -->
+      <div class="kpi-card kpi-battery">
+        <div class="kpi-label">
+          <span>BESS LiFePO4 Reserve</span>
+          <span class="kpi-icon">🔋</span>
+        </div>
+        <div class="kpi-value" id="kpiBattery">85.0 kWh (53%)</div>
+        <div class="kpi-subtext">Core Thermal: +15.0°C</div>
+      </div>
+
+      <!-- Net Flow Balance -->
+      <div class="kpi-card kpi-net">
+        <div class="kpi-label">
+          <span>Net Power Balance</span>
+          <span class="kpi-icon">⚖️</span>
+        </div>
+        <div class="kpi-value" id="kpiNet">-8.7 kW</div>
+        <div class="kpi-subtext">Battery Discharge Mode</div>
+      </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN DASHBOARD GRID -->
+    <div class="dashboard-grid">
+      <!-- LEFT COLUMN: ENVIRONMENTAL SLIDERS & WHAT-IF SCENARIOS -->
+      <div class="deck-column">
+        <!-- Environmental Controls Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Environmental Telemetry & Influx Modulation</span>
+            <span class="card-badge">LIVE DIGITAL TWIN</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 18px;">
+            <!-- Wind Velocity -->
+            <div class="slider-container">
+              <div class="slider-meta">
+                <span class="slider-name">💨 Wind Velocity</span>
+                <span id="txtWind" class="slider-val">12.0 m/s</span>
+              </div>
+              <input id="rngWind" type="range" min="0" max="30" step="0.5" value="12.0">
+              <div class="slider-bounds">
+                <span>0 m/s (Calm)</span>
+                <span>25 m/s (Cut-out)</span>
+                <span>30 m/s (Blizzard)</span>
+              </div>
+            </div>
+
+            <!-- Solar Irradiance -->
+            <div class="slider-container">
+              <div class="slider-meta">
+                <span class="slider-name">☀️ Solar Irradiance</span>
+                <span id="txtLux" class="slider-val">350 Lux</span>
+              </div>
+              <input id="rngLux" type="range" min="0" max="1000" step="10" value="350">
+              <div class="slider-bounds">
+                <span>0 Lux (Polar Night)</span>
+                <span>500 Lux (Overcast)</span>
+                <span>1000 Lux (Peak Sun)</span>
+              </div>
+            </div>
+
+            <!-- Ambient Temperature -->
+            <div class="slider-container">
+              <div class="slider-meta">
+                <span class="slider-name">🌡️ Ambient Temperature</span>
+                <span id="txtTemp" class="slider-val">-28.0 °C</span>
+              </div>
+              <input id="rngTemp" type="range" min="-50" max="0" step="1" value="-28">
+              <div class="slider-bounds">
+                <span>-50°C (Extreme Polar)</span>
+                <span>-25°C (Winter)</span>
+                <span>0°C (Summer Thaw)</span>
+              </div>
+            </div>
+
+            <!-- BESS Storage -->
+            <div class="slider-container">
+              <div class="slider-meta">
+                <span class="slider-name">🔋 Battery Storage (BESS)</span>
+                <span id="txtBattery" class="slider-val">85.0 kWh</span>
+              </div>
+              <input id="rngBattery" type="range" min="5" max="160" step="1" value="85">
+              <div class="slider-bounds">
+                <span>5 kWh (Depleted)</span>
+                <span>40 kWh (25% Alert)</span>
+                <span>160 kWh (100% Full)</span>
+              </div>
+            </div>
+
+            <!-- Secondary Genset -->
+            <div class="slider-container">
+              <div class="slider-meta">
+                <span class="slider-name">⚙️ Secondary Diesel Genset</span>
+                <span id="txtGen" class="slider-val">0.0 kW</span>
+              </div>
+              <input id="rngGen" type="range" min="0" max="45" step="1" value="0">
+              <div class="slider-bounds">
+                <span>0 kW (Off / Reserve)</span>
+                <span>25 kW (Half-Rated)</span>
+                <span>45 kW (Full Max)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- What-If Stress Scenarios Card -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">What-If Stress Scenario Laboratory</span>
+            <span class="card-badge">ONE-CLICK SIMULATION</span>
+          </div>
+          <div class="scenario-button-grid">
+            <button class="scenario-btn" data-scenario="blizzard">
+              <span class="scenario-name">🌪️ Blizzard Warning</span>
+              <span class="scenario-desc">Wind 28 m/s (Brake cut-out), 0 Lux, -42°C freeze.</span>
+            </button>
+            <button class="scenario-btn" data-scenario="generator_trip">
+              <span class="scenario-name">⚡ Generator Trip</span>
+              <span class="scenario-desc">Diesel genset forced to 0 kW during severe cold deficit.</span>
+            </button>
+            <button class="scenario-btn" data-scenario="midnight_sun">
+              <span class="scenario-name">☀️ Midnight Sun Surplus</span>
+              <span class="scenario-desc">950 Lux, 14 m/s wind, -12°C. Maximum green energy margin.</span>
+            </button>
+            <button class="scenario-btn" data-scenario="winter_night">
+              <span class="scenario-name">🌙 Polar Night Conservation</span>
+              <span class="scenario-desc">0 Lux, low 7 m/s wind, -38°C. Maximum heating demand.</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: SURVIVABILITY, SCHEMATIC MAP, RELAY MATRIX & TERMINAL -->
+      <div class="deck-column">
+        <!-- Survivability Engine Radar Panel -->
+        <div class="survivability-panel" id="survivabilityPanel">
+          <div class="flex-between">
+            <span class="card-title">🛡️ Autonomous Survivability Radar & Autonomy Time</span>
+            <span class="badge badge-normal" id="survStatusBadge">CONTINUOUS LIFE-SUPPORT</span>
+          </div>
+
+          <div class="survivability-display">
+            <!-- Safe Hours Dial -->
+            <div class="dial-unit">
+              <div class="gauge-circular">
+                <svg class="gauge-svg" viewBox="0 0 140 140">
+                  <circle class="gauge-bg" cx="70" cy="70" r="60"/>
+                  <circle class="gauge-progress" id="gaugeSafeHours" cx="70" cy="70" r="60"/>
+                </svg>
+                <div class="gauge-center">
+                  <div class="gauge-center-val" id="valSafeHours">48.2</div>
+                  <div class="gauge-center-unit">Hours</div>
+                </div>
+              </div>
+              <span class="dial-label">Safe Autonomy Runway</span>
+            </div>
+
+            <!-- P1 Isolated Hours Dial -->
+            <div class="dial-unit">
+              <div class="gauge-circular">
+                <svg class="gauge-svg" viewBox="0 0 140 140">
+                  <circle class="gauge-bg" cx="70" cy="70" r="60"/>
+                  <circle class="gauge-progress" style="stroke: #38bdf8; stroke-dashoffset: 40;" cx="70" cy="70" r="60"/>
+                </svg>
+                <div class="gauge-center">
+                  <div class="gauge-center-val" id="valP1Hours">>120</div>
+                  <div class="gauge-center-unit">Hours</div>
+                </div>
+              </div>
+              <span class="dial-label">P1 Life-Support Isolated</span>
+            </div>
+
+            <!-- Diesel Fuel Autonomy Dial -->
+            <div class="dial-unit">
+              <div class="gauge-circular">
+                <svg class="gauge-svg" viewBox="0 0 140 140">
+                  <circle class="gauge-bg" cx="70" cy="70" r="60"/>
+                  <circle class="gauge-progress" style="stroke: #fb923c; stroke-dashoffset: 80;" cx="70" cy="70" r="60"/>
+                </svg>
+                <div class="gauge-center">
+                  <div class="gauge-center-val" id="valFuelDays">45.0</div>
+                  <div class="gauge-center-unit">Days</div>
+                </div>
+              </div>
+              <span class="dial-label">Fuel Autonomy Runway</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Station Schematic Digital Twin Map -->
+        <div class="schematic-wrapper">
+          <div class="card-header" style="margin-bottom: 8px;">
+            <span class="card-title">Station Vector Microgrid Schematic // Power Routing</span>
+            <span class="card-badge">CLICK ASSET FOR TELEMETRY</span>
+          </div>
+          <div id="stationSchematicContainer"></div>
+        </div>
+
+        <!-- Relay Interlock Control Matrix -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Station Load Shedding & Relay Interlocks</span>
+            <span class="card-badge">3-TIER PRIORITY PROTECTION</span>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="relay-table">
+              <thead>
+                <tr>
+                  <th>Load Asset</th>
+                  <th>Priority Tier</th>
+                  <th>Nominal</th>
+                  <th>Live Telemetry</th>
+                  <th>Status</th>
+                  <th style="text-align: right;">Relay Contactor</th>
+                </tr>
+              </thead>
+              <tbody id="relayTableBody">
+                <!-- Populated dynamically by dashboard.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Diagnostic Console & Anomaly Stream -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Tactical Diagnostics Terminal & Anomaly Classifier</span>
+            <span class="card-badge">REAL-TIME TELEMETRY FEED</span>
+          </div>
+          <div id="diagnosticTerminal" class="terminal-box">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FLOATING VOICE COPILOT -->
+  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
+  <div id="voiceModal" class="voice-modal">
+    <div class="voice-header">
+      <span>AI TACTICAL COPILOT // OLLAMA FALLBACK</span>
+      <button id="btnCloseVoice" class="btn" style="padding: 2px 6px; font-size: 0.7rem;">✕</button>
+    </div>
+    <div id="voiceChatBox" class="voice-chat-box">
+      <div class="voice-msg assistant">
+        Polar Command Copilot online. Telemetry stream locked. What are your instructions, Commander?
+      </div>
+    </div>
+    <form id="formVoiceInput" class="voice-input-row">
+      <input type="text" id="inpVoiceText" placeholder="Ask AI Copilot..." style="flex:1;">
+      <button type="submit" class="btn btn-primary" style="padding: 6px 12px;">➔</button>
+    </form>
+  </div>
+
+  <!-- EXPEDITION FOOTER -->
+  <footer class="command-footer">
+    <div>POLAR STATION MICROGRID & INTELLIGENCE PLATFORM (SIH 26061) // TEAM SPIDEY_FORCE</div>
+    <div>ACTIVE TELEMETRY BUS: BOREAS v2.4 // EMBEDDED FASTAPI + DIGITAL TWIN ENGINE</div>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/simulation.js"></script>
+  <script type="module" src="js/map.js"></script>
+  <script type="module" src="js/voice.js"></script>
+</body>
+</html>
+

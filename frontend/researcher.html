@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polar Energy AI // Science Mission Scheduler (SIH 26061)</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <!-- NAVIGATION -->
+  <header class="command-nav">
+    <a href="index.html" class="nav-brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-text">
+        <span class="brand-name">POLAR ENERGY AI</span>
+        <span class="brand-sub">SCIENCE PORTAL // SIH 26061</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link">01 OVERVIEW</a></li>
+      <li><a href="dashboard.html" class="nav-link">02 COMMAND DECK</a></li>
+      <li><a href="researcher.html" class="nav-link active">03 SCIENCE SCHEDULER</a></li>
+      <li><a href="admin.html" class="nav-link">04 ADMIN CONSOLE</a></li>
+    </ul>
+
+    <div class="nav-status">
+      <select id="globalStationSelect" style="font-size:0.75rem; padding: 5px 10px;">
+        <option value="ST-01" selected>ST-01: Station Maitri</option>
+        <option value="ST-02">ST-02: Station Bharati</option>
+        <option value="ST-03">ST-03: Amundsen-Scott</option>
+        <option value="ST-04">ST-04: Concordia</option>
+      </select>
+      <span id="liveClock" class="badge badge-info">UTC --:--:-- // POLAR</span>
+      <div id="badgeMode" class="badge badge-normal">
+        <span class="badge-dot"></span>
+        <span id="textMode">GREEN OPTIMIZATION</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="app-container">
+    <!-- HERO INTRO -->
+    <div class="card" style="border-left: 4px solid var(--emerald);">
+      <div class="card-header">
+        <span class="card-title">🔬 Scientific Mission Planning & Green Energy Allocation</span>
+        <span class="badge badge-normal">ZERO-DIESEL PROTOCOL</span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.84rem; line-height: 1.6;">
+        Scientific research equipment (Ice-Core Drills, Cryo-Spectrometry bays, LIDAR lasers) consume heavy electrical loads. This scheduler algorithmically aligns heavy power consumption windows with forecasted solar and wind surplus to prevent diesel generator cranking and preserve polar atmospheric purity.
+      </p>
+    </div>
+
+    <!-- 24-HOUR GREEN ENERGY SURPLUS TIMELINE -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">24-Hour Renewable Surplus Forecast Windows</span>
+        <span class="card-badge">OPTIMAL ZERO-CARBON SLOTS</span>
+      </div>
+      <div id="greenWindowsTimeline" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+        <!-- Populated dynamically by researcher.js -->
+      </div>
+    </div>
+
+    <!-- TWO-COLUMN SCHEDULER & QUEUE -->
+    <div style="display: grid; grid-template-columns: 360px 1fr; gap: 20px;">
+      <!-- LEFT: SCHEDULE NEW EXPERIMENT FORM -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Register Science Operation</span>
+          <span class="card-badge">AUTO-EVALUATION</span>
+        </div>
+        <form id="formNewActivity">
+          <div class="form-group">
+            <label class="form-label" for="inpActName">Equipment / Experiment Title</label>
+            <input type="text" id="inpActName" placeholder="e.g. Sub-Ice Radar Profiling" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpActKwh">Total Energy Required (kWh)</label>
+            <input type="number" id="inpActKwh" step="0.5" min="1" max="200" value="25.0" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpActDuration">Runtime Duration (Hours)</label>
+            <input type="number" id="inpActDuration" step="0.5" min="0.5" max="48" value="3.0" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpActDeadline">Max Deadline (Hours from now)</label>
+            <input type="number" id="inpActDeadline" step="1" min="1" max="168" value="24" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpActPriority">Priority Classification</label>
+            <select id="inpActPriority">
+              <option value="2" selected>P2 - High Science (Drill / Spectrometry)</option>
+              <option value="3">P3 - Auxiliary / Routine Analysis</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px; justify-content: center; padding: 10px;">
+            ⚡ Schedule in Green Window
+          </button>
+        </form>
+      </div>
+
+      <!-- RIGHT: EXPERIMENT QUEUE TABLE -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Station Scientific Power Allocation Queue</span>
+          <span class="card-badge">LIVE CONTROLS</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="relay-table">
+            <thead>
+              <tr>
+                <th>Experiment Name</th>
+                <th>Energy Required</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>AI Advisor Recommendation</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody">
+              <!-- Populated dynamically by researcher.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FLOATING VOICE COPILOT -->
+  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
+  <div id="voiceModal" class="voice-modal">
+    <div class="voice-header">
+      <span>AI TACTICAL COPILOT // OLLAMA FALLBACK</span>
+      <button id="btnCloseVoice" class="btn" style="padding: 2px 6px; font-size: 0.7rem;">✕</button>
+    </div>
+    <div id="voiceChatBox" class="voice-chat-box">
+      <div class="voice-msg assistant">
+        Research Copilot active. You can ask: "When is the next green window for the deep ice drill?" or "What is our current renewable surplus?"
+      </div>
+    </div>
+    <form id="formVoiceInput" class="voice-input-row">
+      <input type="text" id="inpVoiceText" placeholder="Ask AI Copilot..." style="flex:1;">
+      <button type="submit" class="btn btn-primary" style="padding: 6px 12px;">➔</button>
+    </form>
+  </div>
+
+  <!-- EXPEDITION FOOTER -->
+  <footer class="command-footer">
+    <div>POLAR STATION MICROGRID & INTELLIGENCE PLATFORM (SIH 26061) // TEAM SPIDEY_FORCE</div>
+    <div>SCIENCE OPERATIONS OPTIMIZER // FASTAPI + SQLite ARCHITECTURE</div>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/researcher.js"></script>
+  <script type="module" src="js/voice.js"></script>
+</body>
+</html>
+

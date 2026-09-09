@@ -1,0 +1,17 @@
+{
+  "name": "polar-energy-ai",
+  "version": "2.0.0",
+  "description": "Autonomous Polar Research Station AI Energy Management & Digital Twin Platform (SIH 26061)",
+  "main": "backend/main.py",
+  "scripts": {
+    "dev:backend": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:frontend": "live-server frontend --port=3000 --proxy=/api:http://127.0.0.1:8000/api",
+    "dev": "concurrently -k -n \"BACKEND,FRONTEND\" -c \"blue.bold,yellow.bold\" \"npm run dev:backend\" \"npm run dev:frontend\""
+  },
+  "dependencies": {
+    "concurrently": "^9.1.2",
+    "live-server": "^1.2.2"
+  },
+  "author": "Team Spidey_Force",
+  "license": "MIT"
+}

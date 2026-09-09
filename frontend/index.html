@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polar Energy AI // Expedition Mission Overview (SIH 26061)</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <!-- TOP EXPEDITION NAVIGATION -->
+  <header class="command-nav">
+    <a href="index.html" class="nav-brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-text">
+        <span class="brand-name">POLAR ENERGY AI</span>
+        <span class="brand-sub">SIH 26061 // TEAM SPIDEY_FORCE</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link active">01 OVERVIEW</a></li>
+      <li><a href="dashboard.html" class="nav-link">02 COMMAND DECK</a></li>
+      <li><a href="researcher.html" class="nav-link">03 SCIENCE SCHEDULER</a></li>
+      <li><a href="admin.html" class="nav-link">04 ADMIN CONSOLE</a></li>
+    </ul>
+
+    <div class="nav-status">
+      <select id="globalStationSelect" style="font-size:0.75rem; padding: 5px 10px;">
+        <option value="ST-01" selected>ST-01: Station Maitri</option>
+        <option value="ST-02">ST-02: Station Bharati</option>
+        <option value="ST-03">ST-03: Amundsen-Scott</option>
+        <option value="ST-04">ST-04: Concordia</option>
+      </select>
+      <span id="liveClock" class="badge badge-info">UTC --:--:-- // POLAR</span>
+      <div id="badgeMode" class="badge badge-normal">
+        <span class="badge-dot"></span>
+        <span id="textMode">OPTIMAL DISPATCH</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="app-container">
+    <!-- HERO EXPEDITION BANNER -->
+    <div class="card" style="background: linear-gradient(135deg, rgba(21,29,45,0.95) 0%, rgba(13,19,31,0.98) 100%); border-left: 4px solid var(--glacier); padding: 28px 32px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+        <div style="max-width: 800px;">
+          <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--glacier); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">
+            Smart India Hackathon SIH 26061 // Autonomous Polar Microgrid Platform
+          </div>
+          <h1 style="font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 12px;">
+            Next-Gen Autonomous Energy Intelligence for Extreme Polar Research Stations
+          </h1>
+          <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.6;">
+            BOREAS Polar Energy AI ensures uninterrupted life-support survivability across Antarctic research stations by combining Betz aerodynamic wind modeling, sub-zero enhanced bi-facial solar forecasting, 3-tier emergency load shedding, and predictive green energy window scheduling for heavy scientific operations.
+          </p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <a href="dashboard.html" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.85rem;">
+            Launch Command Deck ➔
+          </a>
+          <a href="researcher.html" class="btn" style="padding: 10px 20px; font-size: 0.85rem;">
+            Open Science Scheduler
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUICK TELEMETRY OVERVIEW CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-battery">
+        <div class="kpi-label">
+          <span>Active Station BESS</span>
+          <span class="kpi-icon">🔋</span>
+        </div>
+        <div class="kpi-value" id="kpiBattery">85.0 kWh (53%)</div>
+        <div class="power-flow-bar">
+          <div class="power-flow-fill" style="width: 53%; background: var(--emerald);"></div>
+        </div>
+        <div class="kpi-subtext">LiFePO4 Conditioning: +15.0°C Nominal</div>
+      </div>
+
+      <div class="kpi-card kpi-wind">
+        <div class="kpi-label">
+          <span>Renewable Generation</span>
+          <span class="kpi-icon">💨</span>
+        </div>
+        <div class="kpi-value" id="kpiRenewable">16.4 kW</div>
+        <div class="power-flow-bar">
+          <div class="power-flow-fill" style="width: 68%; background: var(--glacier);"></div>
+        </div>
+        <div class="kpi-subtext">Wind: 10.3 kW | Solar: 6.1 kW</div>
+      </div>
+
+      <div class="kpi-card kpi-demand">
+        <div class="kpi-label">
+          <span>Station Load Demand</span>
+          <span class="kpi-icon">⚡</span>
+        </div>
+        <div class="kpi-value" id="kpiDemand">25.1 kW</div>
+        <div class="power-flow-bar">
+          <div class="power-flow-fill" style="width: 58%; background: var(--amber);"></div>
+        </div>
+        <div class="kpi-subtext">P1 Life Support: 14.0 kW (Locked)</div>
+      </div>
+
+      <div class="kpi-card kpi-net">
+        <div class="kpi-label">
+          <span>Autonomy Runway</span>
+          <span class="kpi-icon">⏱️</span>
+        </div>
+        <div class="kpi-value text-emerald" id="valSafeHours">48.2 hrs</div>
+        <div class="power-flow-bar">
+          <div class="power-flow-fill" style="width: 82%; background: #a855f7;"></div>
+        </div>
+        <div class="kpi-subtext">Isolated P1 Runtime: >120 hrs</div>
+      </div>
+    </div>
+
+    <!-- POLAR EXPEDITION RESEARCH STATIONS GRID -->
+    <div class="section-heading" style="margin-top: 10px; margin-bottom: 14px;">
+      <span style="font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; text-transform: uppercase;">
+        Antarctic Station Deployments (Active Network)
+      </span>
+      <span class="badge badge-info">4 STATIONS ONLINE</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+      <!-- Station 1: Maitri -->
+      <div class="card" style="border-top: 3px solid var(--glacier); cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-01'); window.location.href='dashboard.html';">
+        <div class="card-header">
+          <span class="card-title">🇮🇳 Station Maitri (ST-01)</span>
+          <span class="badge badge-normal">PRIMARY BASE</span>
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
+          Coord: 70°45′57″S 11°44′09″E // Queen Maud Land
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">BESS Reserve:</span>
+            <span class="text-emerald">160.0 kWh Capacity</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Wind Turbines:</span>
+            <span>2x 15 kW Aerodynamic</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Bi-facial PV:</span>
+            <span>22 kW Vertical Ground-mount</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Secondary Genset:</span>
+            <span>45 kW Fast-Crank Diesel</span>
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            Open Station Command ➔
+          </a>
+        </div>
+      </div>
+
+      <!-- Station 2: Bharati -->
+      <div class="card" style="border-top: 3px solid #38bdf8; cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-02'); window.location.href='dashboard.html';">
+        <div class="card-header">
+          <span class="card-title">🇮🇳 Station Bharati (ST-02)</span>
+          <span class="badge badge-normal">ACTIVE</span>
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
+          Coord: 69°24′28″S 76°11′14″E // Larsemann Hills
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">BESS Reserve:</span>
+            <span class="text-emerald">200.0 kWh Capacity</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Wind Turbines:</span>
+            <span>3x 12 kW Low-Temp Blades</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Bi-facial PV:</span>
+            <span>30 kW Coastal Array</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Secondary Genset:</span>
+            <span>60 kW Emergency Genset</span>
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            Open Station Command ➔
+          </a>
+        </div>
+      </div>
+
+      <!-- Station 3: Amundsen-Scott -->
+      <div class="card" style="border-top: 3px solid #f59e0b; cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-03'); window.location.href='dashboard.html';">
+        <div class="card-header">
+          <span class="card-title">🇺🇸 Amundsen-Scott (ST-03)</span>
+          <span class="badge badge-normal">ACTIVE</span>
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
+          Coord: 90°00′00″S 0°00′00″E // Geographic South Pole
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">BESS Reserve:</span>
+            <span class="text-emerald">300.0 kWh Thermal Bank</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Extreme Wind:</span>
+            <span>4x 20 kW Arctic Cutout</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Bi-facial PV:</span>
+            <span>40 kW Summer Array</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Secondary Genset:</span>
+            <span>120 kW Heavy Genset</span>
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            Open Station Command ➔
+          </a>
+        </div>
+      </div>
+
+      <!-- Station 4: Concordia -->
+      <div class="card" style="border-top: 3px solid #a855f7; cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-04'); window.location.href='dashboard.html';">
+        <div class="card-header">
+          <span class="card-title">🇫🇷🇮🇹 Concordia Base (ST-04)</span>
+          <span class="badge badge-normal">ACTIVE</span>
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
+          Coord: 75°06′00″S 123°20′00″E // Dome C Plateau (3,233m)
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">BESS Reserve:</span>
+            <span class="text-emerald">180.0 kWh High-Altitude</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Thin-Air Wind:</span>
+            <span>2x 15 kW High Air Density</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Bi-facial PV:</span>
+            <span>25 kW High Plateau PV</span>
+          </div>
+          <div class="flex-between">
+            <span style="color: var(--text-muted);">Secondary Genset:</span>
+            <span>50 kW Multi-Fuel Genset</span>
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
+            Open Station Command ➔
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- CORE PLATFORM CAPABILITIES SECTION -->
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-header">
+        <span class="card-title">Core Autonomous Intelligence Architecture (SIH 26061)</span>
+        <span class="card-badge">PRODUCTION-READY MULTI-ENGINE</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; font-size: 0.8rem;">
+        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
+          <div style="font-weight: 700; color: var(--glacier); margin-bottom: 6px;">💨 Aerodynamic Wind Betz Modeling</div>
+          <p style="color: var(--text-muted); font-size: 0.74rem;">
+            Computes aerodynamic air power $P = 0.5 \cdot \rho \cdot A \cdot v^3 \cdot C_p$ taking sub-zero dense air ($\rho = 1.34\text{ kg/m}^3$) into account, with automated cut-in (3 m/s), rated (12 m/s), and pitch brake cutoff (25 m/s).
+          </p>
+        </div>
+
+        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
+          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">☀️ Sub-Zero Boosted Bi-facial Solar</div>
+          <p style="color: var(--text-muted); font-size: 0.74rem;">
+            Models vertical Antarctic bi-facial PV panels with ground albedo amplification and sub-zero photovoltaic cell efficiency coefficient (+0.35%/°C below 25°C baseline).
+          </p>
+        </div>
+
+        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
+          <div style="font-weight: 700; color: var(--emerald); margin-bottom: 6px;">🛡️ 3-Tier Protected Shedding</div>
+          <p style="color: var(--text-muted); font-size: 0.74rem;">
+            Categorizes loads into P1 (Life Support & Habitat Thermal locked against shedding), P2 (Scientific drill & spectrometers), and P3 (Drone bays and telemetry repeaters shed first).
+          </p>
+        </div>
+
+        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
+          <div style="font-weight: 700; color: #fb923c; margin-bottom: 6px;">🔬 Green Energy Window Allocation</div>
+          <p style="color: var(--text-muted); font-size: 0.74rem;">
+            Enables station researchers to queue high-draw experiments (e.g. Ice-Core Deep Drill) into optimal renewable surplus windows to guarantee zero diesel generator consumption.
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FLOATING VOICE COPILOT -->
+  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
+  <div id="voiceModal" class="voice-modal">
+    <div class="voice-header">
+      <span>AI TACTICAL COPILOT // OLLAMA FALLBACK</span>
+      <button id="btnCloseVoice" class="btn" style="padding: 2px 6px; font-size: 0.7rem;">✕</button>
+    </div>
+    <div id="voiceChatBox" class="voice-chat-box">
+      <div class="voice-msg assistant">
+        Polar Base Operational Copilot online. Speak your command or query current energy status, battery autonomy, or load shed recommendations.
+      </div>
+    </div>
+    <form id="formVoiceInput" class="voice-input-row">
+      <input type="text" id="inpVoiceText" placeholder="Ask AI Copilot..." style="flex:1;">
+      <button type="submit" class="btn btn-primary" style="padding: 6px 12px;">➔</button>
+    </form>
+  </div>
+
+  <!-- EXPEDITION FOOTER -->
+  <footer class="command-footer">
+    <div>POLAR STATION MICROGRID & INTELLIGENCE PLATFORM (SIH 26061) // TEAM SPIDEY_FORCE</div>
+    <div>ACTIVE BASE: STATION MAITRI // FASTAPI + SQLite + DETERMINISTIC DISPATCH ENGINE</div>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/voice.js"></script>
+</body>
+</html>

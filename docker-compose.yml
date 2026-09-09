@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: polar-energy-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DB_PATH=/data/polar_station.db
+    volumes:
+      - polar-data:/data
+      - ./backend:/app/backend
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    container_name: polar-energy-frontend
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    command: npx live-server frontend --port=3000 --host=0.0.0.0 --proxy=/api:http://backend:8000/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  polar-data:
+
