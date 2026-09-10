@@ -1,0 +1,6 @@
+#laserFlowBackground { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; opacity: .72; background: radial-gradient(ellipse at 50% 18%, rgba(56,189,248,.10), transparent 58%); }
+.laser-flow-canvas { display:block; width:100%; height:100%; pointer-events:none; mix-blend-mode:screen; opacity:.72; }
+.laser-flow-fallback { background: radial-gradient(ellipse at 50% 25%, rgba(56,189,248,.10), transparent 42%); }
+html, body { overflow-x:hidden; }
+body > *:not(#laserFlowBackground) { position:relative; z-index:1; }
+.command-nav, .app-container, .command-footer, .voice-fab, .voice-modal { position:relative; z-index:1; }

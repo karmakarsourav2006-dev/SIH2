@@ -3,3 +3,8 @@ node_modules/
 dist/
 __pycache__/
 *.pycgit 
+node_modules/
+.env
+.env.local
+dist/
+build/

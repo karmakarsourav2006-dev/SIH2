@@ -7,8 +7,11 @@
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/dashboard-redesign.css">
+  <link rel="stylesheet" href="css/laser-flow.css">
 </head>
 <body>
+  <div id="laserFlowBackground" aria-hidden="true"></div>
   <!-- TOP COMMAND BAR -->
   <header class="command-nav">
     <a href="index.html" class="nav-brand">
@@ -52,6 +55,15 @@
 
   <!-- APP CONTAINER -->
   <main class="app-container">
+    <section class="dashboard-intro" aria-labelledby="dashboardTitle">
+      <div>
+        <p class="eyebrow">STATION OPERATIONS / LIVE CONTROL ROOM</p>
+        <h1 id="dashboardTitle">Mission command deck</h1>
+        <p class="intro-copy">Monitor renewable generation, protected loads and equipment health across the active polar microgrid.</p>
+      </div>
+      <div class="intro-status"><span class="status-dot"></span><span>Telemetry connected</span><small>Auto-refresh 5 sec</small></div>
+    </section>
+
     <!-- PRIMARY KPI METRICS GRID -->
     <div class="kpi-grid">
       <!-- Solar Generation -->
@@ -383,6 +395,7 @@
   <script type="module" src="js/map.js"></script>
   <script type="module" src="js/voice.js"></script>
   <script type="module" src="js/equipment.js"></script>
+  <script src="js/laser-flow.js"></script>
 </body>
 </html>
 

@@ -1,0 +1,105 @@
+/* Focused visual refresh for the existing command deck. Functionality remains in the original files. */
+:root {
+  --bg-deep: #0b1220;
+  --bg-main: #101827;
+  --bg-surface: #172235;
+  --bg-surface-elevated: #1d2b41;
+  --bg-surface-active: #253751;
+  --border-subtle: #2a3a52;
+  --border-strong: #405675;
+  --text-main: #f2f6fb;
+  --text-muted: #a7b5c8;
+  --text-dim: #75869c;
+  --radius-sm: 7px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-card: 0 10px 28px rgba(3, 10, 22, .22);
+}
+
+body {
+  background: #101827;
+  background-image: linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+.command-nav {
+  height: auto;
+  min-height: 72px;
+  padding: 12px clamp(18px, 3vw, 42px);
+  gap: 18px;
+  background: rgba(11, 18, 32, .96);
+  border-bottom-color: #263852;
+}
+.brand-icon { border-radius: 10px; box-shadow: none; }
+.nav-links { gap: 2px; }
+.nav-link { padding: 9px 11px; font-size: .7rem; }
+.nav-status { gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+.nav-status .badge { padding: 5px 8px; font-size: .64rem; }
+
+.app-container { max-width: 1500px; padding: 30px clamp(18px, 3vw, 42px) 44px; gap: 24px; }
+.dashboard-intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding: 4px 2px 2px; }
+.eyebrow { color: var(--glacier); font: 700 .68rem/1.4 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 8px; }
+.dashboard-intro h1 { font-size: clamp(1.5rem, 2.4vw, 2.15rem); letter-spacing: -.035em; line-height: 1.1; margin-bottom: 8px; }
+.intro-copy { color: var(--text-muted); max-width: 620px; font-size: .92rem; }
+.intro-status { display: grid; grid-template-columns: auto auto; align-items: center; gap: 3px 8px; padding: 11px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: rgba(23,34,53,.75); color: var(--text-main); font: 700 .72rem var(--font-mono); white-space: nowrap; }
+.intro-status small { grid-column: 2; color: var(--text-dim); font: 500 .64rem var(--font-mono); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 0 4px var(--emerald-soft); }
+
+.kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 0; }
+.kpi-card { padding: 17px 18px; border-radius: var(--radius-md); box-shadow: var(--shadow-card); background: rgba(23,34,53,.94); }
+.kpi-card:hover { transform: translateY(-1px); }
+.kpi-label { font-size: .66rem; letter-spacing: .07em; }
+.kpi-value { font-size: clamp(1.35rem, 2vw, 1.75rem); }
+.kpi-subtext { font-size: .65rem; }
+
+.dashboard-grid { grid-template-columns: minmax(360px, .86fr) minmax(0, 1.35fr); gap: 24px; align-items: start; }
+.deck-column { gap: 24px; }
+.card, .survivability-panel, .schematic-wrapper { border-radius: var(--radius-lg); border-color: var(--border-subtle); box-shadow: var(--shadow-card); }
+.card { padding: 22px; background: rgba(23,34,53,.96); }
+.card-header { gap: 12px; margin-bottom: 18px; align-items: flex-start; }
+.card-title { font-family: var(--font-sans); font-size: .82rem; letter-spacing: .045em; line-height: 1.35; }
+.card-badge { font-size: .62rem; white-space: nowrap; }
+
+.survivability-panel { padding: 22px; background: rgba(23,34,53,.96); }
+.survivability-display { gap: 26px; margin: 24px 0 8px; }
+.gauge-circular, .gauge-svg { width: 126px; height: 126px; }
+.dial-label { font-size: .65rem; max-width: 140px; }
+.schematic-wrapper { padding: 20px; background: rgba(11,18,32,.9); }
+.equipment-signature-list { gap: 8px; }
+.equipment-row { grid-template-columns: minmax(135px, 1.1fr) minmax(125px, 1.4fr) auto auto auto; padding: 13px 14px; border-radius: 9px; background: rgba(255,255,255,.025); border-left-width: 3px; }
+.equipment-row.warning { background: rgba(245,158,11,.07); }
+.equipment-row.critical { background: rgba(239,68,68,.1); }
+.equipment-status { letter-spacing: .07em; }
+.equipment-simulate-btn { font-size: .66rem; padding: 8px 11px; }
+.scenario-btn { padding: 14px; border-radius: 9px; }
+.scenario-name { font-family: var(--font-sans); font-size: .78rem; }
+.scenario-desc { line-height: 1.45; }
+.relay-table { font-size: .75rem; }
+.relay-table th { padding: 11px 12px; }
+.relay-table td { padding: 13px 12px; }
+.terminal-box { height: 220px; border-radius: 9px; }
+.voice-fab { width: 48px; height: 48px; right: 22px; bottom: 20px; box-shadow: 0 8px 22px rgba(0,0,0,.35); }
+
+@media (max-width: 1200px) {
+  .nav-links { display: none; }
+  .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .command-nav { align-items: flex-start; flex-wrap: wrap; }
+  .nav-status { width: 100%; justify-content: flex-start; }
+  .dashboard-intro { align-items: flex-start; flex-direction: column; }
+  .intro-status { width: 100%; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card, .survivability-panel, .schematic-wrapper { padding: 17px; }
+  .equipment-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .equipment-row .equipment-reading { grid-column: 1 / -1; }
+  .equipment-simulate-btn { grid-column: 1 / -1; margin-left: 0; }
+  .survivability-display { gap: 18px; }
+}
+@media (max-width: 440px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .nav-status select { max-width: 100%; }
+}
