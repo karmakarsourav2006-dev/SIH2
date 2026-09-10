@@ -1,5 +1,6 @@
 import uuid
 import datetime
+import re
 from typing import Dict, Any, List, Optional
 from backend.database import get_db
 from backend.services.digital_twin import DigitalTwin
@@ -271,7 +272,9 @@ class AITools:
         required_kwh: float = 20.0,
         duration_hrs: float = 2.0,
         deadline_hrs: float = 24.0,
-        priority: int = 2
+        priority: int = 2,
+        explicit_kwh: bool = False,
+        explicit_duration: bool = False
     ) -> Dict[str, Any]:
         """Registers a new scientific activity directly into the database."""
         act_id = f"ACT-{uuid.uuid4().hex[:6].upper()}"
@@ -293,6 +296,14 @@ class AITools:
                     "NEXT_GREEN_WINDOW"
                 )
             )
+            try:
+                conn.execute(
+                    """INSERT OR REPLACE INTO experiments (id, name, required_kwh, duration_hrs, priority, status)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (act_id, name, float(required_kwh), float(duration_hrs), int(priority), "QUEUED")
+                )
+            except Exception:
+                pass
             conn.commit()
 
         return {
@@ -302,6 +313,8 @@ class AITools:
             "name": name,
             "required_kwh": required_kwh,
             "duration_hrs": duration_hrs,
+            "explicit_kwh": explicit_kwh,
+            "explicit_duration": explicit_duration,
             "priority": priority,
             "status": "QUEUED"
         }
@@ -330,14 +343,89 @@ class AITools:
         return {"ok": True, "action": "UPDATED", "activity_id": activity_id, "updated_fields": list(kwargs.keys())}
 
     @staticmethod
-    def delete_activity(activity_id: str) -> Dict[str, Any]:
-        """Removes a scientific activity from the schedule."""
+    def delete_activity(identifier: str) -> Dict[str, Any]:
+        """Removes a scientific activity from the schedule by ID, Name, or Quantity."""
         with get_db() as conn:
-            cursor = conn.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
+            target = (identifier or "").strip()
+            row = None
+
+            # 0. Check for quantity / multiple deletion request (e.g. "2 activities", "two activities", "both", "all")
+            num_words = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "both": 2}
+            qty_match = re.search(r"\b(\d+|one|two|three|four|five|six|both|all)\b", target.lower())
+            is_qty_request = bool(qty_match and (
+                re.search(r"\b(activit(?:y|ies)|tasks?|experiments?|operations?)\b", target.lower()) or 
+                target.lower().strip() in ("2", "two", "both", "all", "all activities") or
+                "last" in target.lower()
+            ))
+
+            if is_qty_request and qty_match:
+                token = qty_match.group(1).lower()
+                count = 999 if token == "all" else (num_words.get(token) or (int(token) if token.isdigit() else None))
+                if count and count > 0:
+                    cursor = conn.execute("SELECT id, name FROM activities ORDER BY rowid DESC LIMIT ?", (count,))
+                    rows = cursor.fetchall()
+                    if not rows:
+                        return {"ok": False, "error": "There are currently no scheduled activities to remove."}
+
+                    deleted_names = [r["name"] for r in rows]
+                    ids = [r["id"] for r in rows]
+                    placeholders = ",".join("?" for _ in ids)
+                    conn.execute(f"DELETE FROM activities WHERE id IN ({placeholders})", ids)
+                    try:
+                        conn.execute(f"DELETE FROM experiments WHERE id IN ({placeholders})", ids)
+                    except Exception:
+                        pass
+                    conn.commit()
+
+                    if len(deleted_names) == 1:
+                        names_str = f"'{deleted_names[0]}'"
+                    elif len(deleted_names) == 2:
+                        names_str = f"'{deleted_names[0]}' and '{deleted_names[1]}'"
+                    else:
+                        names_str = ", ".join(f"'{n}'" for n in deleted_names[:-1]) + f", and '{deleted_names[-1]}'"
+
+                    count_deleted = len(deleted_names)
+                    plural = "activities" if count_deleted > 1 else "activity"
+                    msg = f"Removed {count_deleted} {plural}: {names_str} from the schedule."
+                    return {
+                        "ok": True,
+                        "action": "DELETED",
+                        "activity_id": ", ".join(ids),
+                        "name": names_str,
+                        "count": count_deleted,
+                        "message": msg
+                    }
+
+            if target and target.lower() not in ("that", "it", "this", "the activity", "the experiment", "last"):
+                # 1. Try exact ID
+                cursor = conn.execute("SELECT id, name FROM activities WHERE id = ?", (target,))
+                row = cursor.fetchone()
+                # 2. Try exact Name (case-insensitive)
+                if not row:
+                    cursor = conn.execute("SELECT id, name FROM activities WHERE LOWER(name) = LOWER(?)", (target,))
+                    row = cursor.fetchone()
+                # 3. Try partial Name (case-insensitive substring)
+                if not row:
+                    cursor = conn.execute("SELECT id, name FROM activities WHERE LOWER(name) LIKE LOWER(?) ORDER BY rowid DESC", (f"%{target}%",))
+                    row = cursor.fetchone()
+
+            # 4. If target is pronoun or unspecified, pick most recently added activity
+            if not row and (target.lower() in ("that", "it", "this", "the activity", "the experiment", "last") or not target):
+                cursor = conn.execute("SELECT id, name FROM activities ORDER BY rowid DESC LIMIT 1")
+                row = cursor.fetchone()
+
+            if not row:
+                return {"ok": False, "error": f"Activity '{identifier}' not found in the schedule."}
+
+            act_id = row["id"]
+            act_name = row["name"]
+            conn.execute("DELETE FROM activities WHERE id = ?", (act_id,))
+            try:
+                conn.execute("DELETE FROM experiments WHERE id = ? OR LOWER(name) = LOWER(?)", (act_id, act_name))
+            except Exception:
+                pass
             conn.commit()
-            if cursor.rowcount == 0:
-                return {"error": f"Activity '{activity_id}' not found."}
-        return {"ok": True, "action": "DELETED", "activity_id": activity_id}
+            return {"ok": True, "action": "DELETED", "activity_id": act_id, "name": act_name}
 
     @staticmethod
     def reschedule_activity(activity_id: str, new_slot: str) -> Dict[str, Any]:

@@ -54,33 +54,72 @@ class AgentFallback:
             act_id = context.get("activity_id", "ACT")
             kwh = context.get("required_kwh", 20.0)
             hrs = context.get("duration_hrs", 2.0)
+            exp_kwh = context.get("explicit_kwh", False)
+            exp_dur = context.get("explicit_duration", False)
+            if exp_kwh and exp_dur:
+                detail = f" with {kwh} kWh allocated over {hrs} hours"
+            elif exp_kwh:
+                detail = f" with {kwh} kWh allocated"
+            elif exp_dur:
+                detail = f" scheduled for {hrs} hours"
+            else:
+                detail = ""
             return {
                 "intent": "CREATE_ACTIVITY",
                 "priority": "P2 SCIENCE",
-                "explanation": f"Operation '{act_name}' ({act_id}) has been added to the station schedule. Allocated {kwh} kWh over {hrs} hours and queued for execution.",
+                "explanation": f"Operation '{act_name}' has been added to the station schedule{detail}.",
                 "actions": [
                     f"Registered {act_id} in SQLite database.",
                     "Queued under Priority 2 for execution during forecasted renewable surplus."
                 ],
-                "voice_text": f"Operation '{act_name}' has been added to the station schedule and allocated {kwh} kWh."
+                "voice_text": f"Operation '{act_name}' has been added to the station schedule{detail}."
+            }
+
+        # 2.55 Activity Deleted Confirmation Fallback
+        if isinstance(context, dict) and context.get("action") == "DELETED":
+            act_name = context.get("name") or context.get("activity_id") or "Operation"
+            return {
+                "intent": "DELETE_ACTIVITY",
+                "priority": "P2 SCIENCE",
+                "explanation": f"Operation '{act_name}' has been removed from the station schedule. Allocated power has been reclaimed.",
+                "actions": [
+                    f"Removed record from SQLite database.",
+                    "Reallocated energy capacity back to station battery reserves."
+                ],
+                "voice_text": f"'{act_name}' has been removed from the schedule."
             }
 
         # 2.6 Dynamic Schedule Fallback
-        if isinstance(context, list) and len(context) > 0 and ("schedule" in q or "planned" in q or "queue" in q or "activities" in q):
-            recent_names = [a.get("name", "Task") for a in context[:3]]
-            names_str = ", ".join(recent_names)
+        if isinstance(context, list) and ("schedule" in q or "planned" in q or "queue" in q or "activities" in q):
+            if not context:
+                return {
+                    "intent": "GET_SCHEDULE",
+                    "priority": "P2 SCIENCE",
+                    "explanation": "There are currently zero scientific operations in the station schedule.",
+                    "actions": ["Queried SQLite activities table."],
+                    "voice_text": "There are currently zero operations in the station schedule."
+                }
+            names = [a.get("name", "Task") for a in context if a.get("name")]
+            count = len(names)
+            if count == 1:
+                names_str = names[0]
+            elif count == 2:
+                names_str = f"{names[0]} and {names[1]}"
+            else:
+                names_str = ", ".join(names[:-1]) + f", and {names[-1]}"
+
             return {
                 "intent": "GET_SCHEDULE",
                 "priority": "P2 SCIENCE",
-                "explanation": f"Current station operations schedule includes: {names_str}. All tasks queued for execution under optimal renewable windows.",
+                "explanation": f"The station schedule currently has {count} active operations: {names_str}.",
                 "actions": [
-                    f"Queried {len(context)} scheduled operations from SQLite database."
+                    f"Queried {count} scheduled operations from SQLite database."
                 ],
-                "voice_text": f"The scheduled activities include {names_str}."
+                "voice_text": f"The station schedule currently has {count} active operations: {names_str}."
             }
 
         # 3. Ice Drill / Experiments / Green Window
-        if "drill" in q or "experiment" in q or "schedule" in q or "activity" in q:
+        if ("drill" in q or "experiment" in q or "schedule" in q or "activity" in q) and not any(kw in q for kw in ["delete", "remove", "cancel", "add", "create", "new"]):
             return {
                 "intent": "RESEARCH_SCHEDULING",
                 "priority": "ADVISORY",

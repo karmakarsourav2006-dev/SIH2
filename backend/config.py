@@ -35,8 +35,9 @@ class Settings(BaseModel):
 
     # Ollama LLM Configuration
     OLLAMA_URL: str = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.environ.get("OLLAMA_MODEL", "qwen3:1.7b")
+    OLLAMA_MODEL: str = os.environ.get("OLLAMA_MODEL", "gemma3:270m")
     OLLAMA_TIMEOUT: float = float(os.environ.get("OLLAMA_TIMEOUT", "60.0"))
+    RESEARCH_DIR: str = os.environ.get("RESEARCH_DIR", os.path.join(BASE_DIR, "backend", "rag", "papers"))
 
     # Weather Provider Configuration
     WEATHER_PROVIDER: str = os.environ.get("WEATHER_PROVIDER", "openweather")

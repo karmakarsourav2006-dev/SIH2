@@ -190,11 +190,15 @@ class ConversationManager:
                 name = req_ctx.entities.get("name") or "Ad-Hoc Polar Mission"
                 kwh = float(req_ctx.entities.get("required_kwh", 20.0))
                 dur = float(req_ctx.entities.get("duration_hrs", 2.0))
+                explicit_kwh = bool(req_ctx.entities.get("explicit_kwh", False))
+                explicit_dur = bool(req_ctx.entities.get("explicit_duration", False))
                 req_ctx.tool_arguments = {
                     "station_id": station_id,
                     "name": name,
                     "required_kwh": kwh,
-                    "duration_hrs": dur
+                    "duration_hrs": dur,
+                    "explicit_kwh": explicit_kwh,
+                    "explicit_duration": explicit_dur
                 }
                 req_ctx.tool_result = AITools.create_activity(
                     station_id=station_id,
@@ -202,11 +206,25 @@ class ConversationManager:
                     required_kwh=kwh,
                     duration_hrs=dur,
                     deadline_hrs=24.0,
-                    priority=2
+                    priority=2,
+                    explicit_kwh=explicit_kwh,
+                    explicit_duration=explicit_dur
                 )
                 session.last_activity_name = name
                 session.last_activity_id = req_ctx.tool_result.get("activity_id")
                 session.last_topic = "activity_created"
+
+            elif req_ctx.selected_tool == "delete_activity":
+                ident = req_ctx.entities.get("identifier") or session.last_activity_name or session.last_activity_id or ""
+                if ident.lower() in ("that", "it", "this", "the activity", "the experiment", "last") and session.last_activity_name:
+                    ident = session.last_activity_name
+                req_ctx.tool_arguments = {"identifier": ident}
+                del_result = AITools.delete_activity(ident)
+                req_ctx.tool_result = del_result
+                if del_result.get("ok"):
+                    session.last_topic = "activity_deleted"
+                    session.last_activity_name = None
+                    session.last_activity_id = None
 
             elif req_ctx.selected_tool == "get_station_status":
                 req_ctx.tool_result = AITools.get_station_status(station_id)
@@ -260,8 +278,8 @@ class ConversationManager:
             # Policy explanation: NO station status numbers!
             system_prompt = (
                 f"You are BOREAS AI. Explain the schedule modification policy directly in 1-2 sentences: "
-                f"Yes, researchers can reschedule or defer Priority 2 and Priority 3 science activities via the Science Schedule console "
-                f"or by voice command. Core life-support and habitat heating (Priority 1) are locked and cannot be unscheduled."
+                f"Yes, you can add, reschedule, or delete Priority 2 and Priority 3 science activities by voice or via the console. "
+                f"Core life-support and habitat heating (Priority 1) are locked and cannot be unscheduled."
             )
             user_content = f"User Question: {resolved_query}\nDirect Answer in 1-2 sentences:"
 
@@ -282,13 +300,23 @@ class ConversationManager:
 
         elif req_ctx.detected_intent == "GET_SCHEDULE":
             sch = req_ctx.tool_result if isinstance(req_ctx.tool_result, list) else []
-            items = [f"- {a.get('name')}: {a.get('required_kwh')} kWh, {a.get('duration_hrs')}h ({a.get('execution_status')})" for a in sch[:5]]
-            data_str = "\n".join(items) if items else "No active activities queued."
+            if not sch:
+                schedule_summary = "There are currently zero scientific operations in the station schedule."
+            else:
+                names = [a.get("name") for a in sch if a.get("name")]
+                count = len(names)
+                if count == 1:
+                    names_str = names[0]
+                elif count == 2:
+                    names_str = f"{names[0]} and {names[1]}"
+                else:
+                    names_str = ", ".join(names[:-1]) + f", and {names[-1]}"
+                schedule_summary = f"The station schedule currently has {count} active operations: {names_str}."
+
             system_prompt = (
-                f"You are BOREAS AI. Answer the question directly in 1-2 concise sentences using the provided operations schedule. "
-                f"Specifically name the latest scheduled operations and activities listed below."
+                f"You are BOREAS AI, the station copilot. State the exact operations schedule directly in 1 concise sentence: {schedule_summary}"
             )
-            user_content = f"Current Station Operations Schedule (Latest first):\n{data_str}\n\nQuestion: {resolved_query}\nDirect Answer in 1-2 sentences:"
+            user_content = f"Question: {resolved_query}\nExact Schedule Answer:"
 
         elif req_ctx.detected_intent == "GET_ACTIVITY_ENERGY":
             e = req_ctx.tool_result
@@ -336,13 +364,45 @@ class ConversationManager:
             user_content = f"Simulation Results:\n{data_str}\n\nQuestion: {resolved_query}\nDirect Answer in 1-2 sentences:"
 
         elif req_ctx.detected_intent == "CREATE_ACTIVITY":
-            act = req_ctx.tool_result
+            act = req_ctx.tool_result or {}
+            act_name = act.get('name') or 'New Activity'
+            kwh = act.get('required_kwh', 20.0)
+            dur = act.get('duration_hrs', 2.0)
+            explicit_kwh = act.get('explicit_kwh', req_ctx.entities.get('explicit_kwh', False))
+            explicit_dur = act.get('explicit_duration', req_ctx.entities.get('explicit_duration', False))
+
+            if explicit_kwh and explicit_dur:
+                conf_str = f"Operation '{act_name}' has been added to the station schedule with {kwh} kWh allocated over {dur} hours."
+            elif explicit_kwh:
+                conf_str = f"Operation '{act_name}' has been added to the station schedule with {kwh} kWh allocated."
+            elif explicit_dur:
+                conf_str = f"Operation '{act_name}' has been added to the station schedule for {dur} hours."
+            else:
+                conf_str = f"Operation '{act_name}' has been added to the station schedule."
+
             system_prompt = (
-                f"You are BOREAS AI. Confirm the creation and registration of the new scientific mission in 1-2 professional sentences. "
-                f"State its name, allocated energy, and that it has been approved and queued under Priority 2 for execution during forecasted renewable surplus."
+                f"You are BOREAS AI. Confirm the addition directly with: {conf_str}"
             )
-            data_str = f"Mission: '{act.get('name')}', ID: {act.get('activity_id')}, Required: {act.get('required_kwh')} kWh, Duration: {act.get('duration_hrs')} hours, Priority: Priority 2 Science, Status: QUEUED."
-            user_content = f"Scheduled Activity Data:\n{data_str}\n\nQuestion: {resolved_query}\nConfirmation in 1-2 sentences:"
+            user_content = f"Scheduled Activity Data:\n{conf_str}\n\nQuestion: {resolved_query}\nDirect Confirmation in 1 sentence:"
+
+        elif req_ctx.detected_intent == "DELETE_ACTIVITY":
+            res = req_ctx.tool_result or {}
+            if res.get("ok"):
+                if res.get("message"):
+                    conf_str = res.get("message")
+                else:
+                    act_name = res.get("name") or res.get("activity_id") or "The activity"
+                    conf_str = f"Operation '{act_name}' has been removed from the schedule."
+                system_prompt = (
+                    f"You are BOREAS AI. Confirm the removal directly with: {conf_str}"
+                )
+                user_content = f"Action: {conf_str}\nDirect Confirmation in 1 sentence:"
+            else:
+                conf_str = res.get("error", "The specified activity was not found in the schedule.")
+                system_prompt = (
+                    f"You are BOREAS AI. Inform the user directly in 1 sentence: {conf_str}"
+                )
+                user_content = f"Notice: {conf_str}\nDirect Answer in 1 sentence:"
 
         elif req_ctx.detected_intent == "RESEARCH_RAG":
             system_prompt = f"Summarize the retrieved academic research literature on polar microgrids in 2-3 concise sentences."
@@ -375,6 +435,7 @@ class ConversationManager:
             "GET_BATTERY_STATUS",
             "GET_CURRENT_ENERGY",
             "GET_SCHEDULE",
+            "DELETE_ACTIVITY",
         }
         intent_requires_history = req_ctx.detected_intent not in STANDALONE_INTENTS
 
@@ -387,26 +448,39 @@ class ConversationManager:
                 messages.append({"role": turn["role"], "content": turn["content"][:150]})
         messages.append({"role": "user", "content": user_content})
 
-        # Step 7: Call local Ollama LLM
-        llm_response = OllamaClient.chat(messages=messages, temperature=0.1)
-        provider = f"Ollama Local ({settings.OLLAMA_MODEL})"
+        # Step 7: Response generation
+        # For database mutations and schedule queries, guarantee 100% complete factual reporting
+        if req_ctx.detected_intent in ("GET_SCHEDULE", "CREATE_ACTIVITY", "DELETE_ACTIVITY"):
+            if req_ctx.detected_intent == "GET_SCHEDULE":
+                llm_response = schedule_summary
+            elif req_ctx.detected_intent == "CREATE_ACTIVITY":
+                llm_response = conf_str
+            elif req_ctx.detected_intent == "DELETE_ACTIVITY":
+                llm_response = conf_str
+            provider = "Polar Operations Engine"
+        elif req_ctx.detected_intent == "GENERAL_CONVERSATION" and req_ctx.entities.get("topic") in ("gratitude", "praise", "wellbeing"):
+            topic = req_ctx.entities.get("topic")
+            if topic == "gratitude":
+                llm_response = "You are welcome! Happy to assist with station operations."
+            elif topic == "praise":
+                llm_response = "Glad you liked it! Always standing by to keep the polar microgrid running smoothly."
+            elif topic == "wellbeing":
+                llm_response = "I am doing great, all systems are nominal and I am standing by to assist you."
+            provider = "Polar Operations Engine"
+        else:
+            llm_response = OllamaClient.chat(messages=messages, temperature=0.1)
+            provider = f"Ollama Local ({settings.OLLAMA_MODEL})"
 
-        if not llm_response:
-            fallback = AgentFallback.answer(resolved_query, req_ctx.tool_result)
-            llm_response = fallback.get("explanation", "Operational telemetry analyzed.")
-            provider = "Deterministic Rule Supervisor"
+            if not llm_response:
+                fallback = AgentFallback.answer(resolved_query, req_ctx.tool_result)
+                llm_response = fallback.get("explanation", "Operational telemetry analyzed.")
+                provider = "Deterministic Rule Supervisor"
 
         req_ctx.final_response = llm_response.strip()
 
-        # Voice text: first sentence under 180 characters (preserves decimals like 53.1% or 16.5 kW)
-        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', req_ctx.final_response) if s.strip()]
-        first_sentence = sentences[0] if sentences else req_ctx.final_response
-        voice_summary = re.sub(r"[*#_`~]", "", first_sentence).strip()
-        if not voice_summary.endswith((".", "!", "?")):
-            voice_summary += "."
-        if len(voice_summary) > 180:
-            voice_summary = voice_summary[:177] + "..."
-        req_ctx.voice_text = voice_summary
+        # Voice text: Full response for speech synthesis (preserve 100% of the content without truncating to first sentence or 180 chars)
+        clean_voice = re.sub(r"[*#_`~]", "", req_ctx.final_response).strip()
+        req_ctx.voice_text = clean_voice
 
         session.add_turn("assistant", req_ctx.final_response)
         session.last_intent = req_ctx.detected_intent

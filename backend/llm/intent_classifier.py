@@ -111,9 +111,9 @@ class IntentClassifier:
                     "confidence": 0.95
                 }
 
-        # 2. SCHEDULE_MODIFICATION_POLICY: "Can I change the schedule?", "Can we move an experiment?"
+        # 2. SCHEDULE_MODIFICATION_POLICY: "Can I change the schedule?", "Can you delete or remove anything from the schedule?"
         # Distinguish informational vs. modifiability policy vs. actual execution
-        if re.search(r"\b(can i change the schedule|can we change the schedule|how to change the schedule|how can i change the schedule|can i reschedule|can we reschedule|can i move the experiment|can we move an experiment|is it possible to reschedule|modify schedule policy)\b", q):
+        if re.search(r"\b(can (i|we|you) (change|reschedule|move|delete|remove|cancel)|how (can|do|to) (change|reschedule|move|delete|remove|cancel)|is it possible to (reschedule|delete|remove|cancel)|modify schedule policy)\b", q):
             return {
                 "intent": "SCHEDULE_MODIFICATION_POLICY",
                 "entities": {"aspect": "policy"},
@@ -151,7 +151,11 @@ class IntentClassifier:
                 "selected_tool": "reschedule_activity",
                 "confidence": 0.95
             }
-        if re.search(r"\b(create activity|add activity|new activity|register experiment|schedule new|include .* in (the )?schedule|add .* to (the )?schedule|schedule .* for|add .* for)\b", q):
+        if re.search(r"\b(create|add|at|ad|include|insert|put|schedule|register)\b", q) and (
+            re.search(r"\b(to (my |the )?schedule|in (my |the )?schedule|into (my |the )?schedule|to schedule|in schedule|new (activity|task|experiment|mission)|activity|experiment|mission|task|survey)\b", q)
+            or re.search(r"\b(create activity|add activity|schedule new|register activity)\b", q)
+            or re.search(r"\b\d+(?:\.\d+)?\s*(?:kwh|kilowatt[- ]hours?|hours?|hrs?)\b", q)
+        ) and not re.search(r"\b(can (i|we|you)|how (can|do|to)|tell me|what is|what are)\b", q):
             # Extract activity name, kWh, and duration
             kwh_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:kwh|kilowatt[- ]hours?)", q)
             req_kwh = float(kwh_match.group(1)) if kwh_match else 20.0
@@ -159,42 +163,47 @@ class IntentClassifier:
             hrs_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)", q)
             duration = float(hrs_match.group(1)) if hrs_match else 2.0
 
-            # Clean parsing: look for "add <NAME> to schedule" or "include <NAME> in schedule"
-            name_extract = re.search(r"(?:add|include|schedule|register)\s+(?:new\s+)?(?:activity|task|mission|experiment\s+)?(.+?)\s+(?:to\s+(?:the\s+)?schedule|in\s+(?:the\s+)?schedule|for\s+\d+|requiring|\.|$)", q, re.IGNORECASE)
-            if name_extract:
-                candidate = name_extract.group(1).strip()
-            else:
-                candidate = q
+            cand = re.sub(r"^(?:ok\s*,\s*|please\s+|can you\s+|could you\s+)?(?:add|at|ad|include|insert|put|schedule|register|create)\s+(?:a|an|the|new|one more thing\s*,?\s*which is\s*)?", "", q).strip()
+            cand = re.sub(r"\s+(?:to|in|into)\s+(?:my|the|station)?\s*schedule.*$", "", cand)
+            cand = re.sub(r"\s+for\s+tomorrow.*$", "", cand)
+            cand = re.sub(r"\s+tomorrow.*$", "", cand)
+            cand = re.sub(r"\s+at\s+\d+.*$", "", cand)
+            cand = re.sub(r"\s+for\s+\d+.*$", "", cand)
+            cand = re.sub(r"\s+with\s+\d+.*$", "", cand)
+            cand = re.sub(r"\s+requiring\s+\d+.*$", "", cand)
+            cand = re.sub(r"\b(experiment|activity|task|mission)\b", "", cand)
+            cand = cand.strip(" ,.-:")
 
-            # Strip filler clauses
-            candidate = re.sub(
-                r"\b(please|can you|could you|you have to|i want you to|we have some work|which is not included in the schedule|not included in schedule|right now|include|add|schedule|create|register|new activity|new task|experiment|to the schedule|in the schedule|to schedule|in schedule|with \d+(?:\.\d+)?\s*kwh|requiring \d+(?:\.\d+)?\s*kwh|for \d+(?:\.\d+)?\s*hours?|for \d+(?:\.\d+)?\s*hrs?)\b",
-                "",
-                candidate,
-                flags=re.IGNORECASE
-            ).strip(" ,.-:")
-
-            act_name = candidate.title() if (candidate and len(candidate) > 2) else "Ad-Hoc Polar Mission"
+            act_name = cand.title() if len(cand) > 2 else ("Solar Panel Performance" if "solar" in q else "Ad-Hoc Science Mission")
 
             return {
                 "intent": "CREATE_ACTIVITY",
                 "entities": {
                     "name": act_name,
                     "required_kwh": req_kwh,
-                    "duration_hrs": duration
+                    "duration_hrs": duration,
+                    "explicit_kwh": bool(kwh_match),
+                    "explicit_duration": bool(hrs_match)
                 },
                 "requires_tool": True,
                 "selected_tool": "create_activity",
-                "confidence": 0.95
+                "confidence": 0.96
             }
-        if re.search(r"\b(delete activity|remove activity|cancel activity|abort activity)\b", q):
-            return {
-                "intent": "DELETE_ACTIVITY",
-                "entities": {},
-                "requires_tool": True,
-                "selected_tool": "delete_activity",
-                "confidence": 0.95
-            }
+
+        if re.search(r"\b(delete|remove|cancel|drop|abort|take off)\b", q) and not re.search(r"\b(can (i|we|you)|how (can|do|to)|is it possible)\b", q):
+            if re.search(r"\b(from (the |my )?schedule|in (the |my )?schedule|out of (the |my )?schedule|activity|activities|experiment|mission|task|act-\w+)\b", q) or re.search(r"\b(delete|remove|cancel)\s+(this|that|it|last)\b", q):
+                cand = re.sub(r"^(?:ok\s*,\s*|please\s+|can you\s+|could you\s+)?(?:delete|remove|cancel|drop|abort|take off)\s+", "", q).strip()
+                cand = re.sub(r"^(?:the|a|an|activity|experiment|task|mission)\s+", "", cand).strip()
+                cand = re.sub(r"\s+(?:from|in|out of)\s+(?:the|my|station)?\s*schedule.*$", "", cand)
+                cand = cand.strip(" ,.-:")
+
+                return {
+                    "intent": "DELETE_ACTIVITY",
+                    "entities": {"identifier": cand},
+                    "requires_tool": True,
+                    "selected_tool": "delete_activity",
+                    "confidence": 0.96
+                }
         if re.search(r"\b(update activity|modify activity|change priority)\b", q):
             return {
                 "intent": "UPDATE_ACTIVITY",

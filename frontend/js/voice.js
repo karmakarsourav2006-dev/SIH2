@@ -1,6 +1,12 @@
 /**
- * POLAR ENERGY AI - CONTINUOUS CONVERSATIONAL VOICE COPILOT
- * Web Speech API (STT & TTS), Multi-turn Conversational Loop, State Indicators & Interlock
+ * POLAR ENERGY AI - UNBROKEN CONVERSATIONAL VOICE COPILOT
+ * Web Speech API (STT & Sequential Chunked TTS), Continuous Conversational Loop
+ * Features:
+ *  - 100% full speech synthesis without trailing truncation
+ *  - Robust Chromium keepalive with pause/resume monitoring
+ *  - Verified microphone capture (LISTENING indicator strictly bound to recognition.onstart)
+ *  - Controlled hardware audio cooldown before microphone revival
+ *  - Infinite multi-turn back-and-forth loop until user clicks the cross (✕) button
  */
 
 import { apiFetch, GlobalState, showToast } from './app.js';
@@ -13,15 +19,23 @@ export const VoiceState = {
 };
 
 let recognition = null;
+let recognitionSessionId = 0;
 let currentState = VoiceState.STANDBY;
-let isContinuousMode = true; // Auto-resume conversation by default in voice mode
 let isSpeaking = false; // INVARIANT: isSpeaking === true -> recognition MUST NOT start
-let retryRecognitionTimeout = null;
 let currentUtterance = null;
-let silenceRestartTimeout = null;
 let ttsCooldownTimeout = null;
+let speechEndTimeout = null;
+let silenceRestartTimeout = null;
+let retryRecognitionTimeout = null;
+let chunkWatchdog = null;
 let activeRequestId = null;
 let activeAbortController = null;
+let accumulatedTranscript = '';
+
+// Sequential TTS chunking queue to prevent Chrome 15s pause/drop bug
+let speechQueue = [];
+let speechQueueIndex = 0;
+let ttsKeepaliveInterval = null;
 
 let sessionId = localStorage.getItem('polar_ai_session_id');
 if (!sessionId) {
@@ -30,206 +44,331 @@ if (!sessionId) {
 }
 
 export function initVoiceAssistant() {
-  setupSpeechRecognition();
   bindVoiceUI();
-  setVoiceState(VoiceState.STANDBY);
+
+  // Restore persistent chat history so previous chats never disappear
+  restoreChatHistory();
+
+  // Restore persistent open state if previously opened
+  const wasOpen = localStorage.getItem('polar_voice_modal_open') === 'true';
+  const modal = document.getElementById('voiceModal');
+  if (wasOpen && modal) {
+    modal.classList.add('open');
+    startListening();
+  } else {
+    setVoiceState(VoiceState.STANDBY);
+  }
 }
 
 /**
- * Configure Browser Speech Recognition (STT)
+ * Restore chat history from sessionStorage
  */
-function setupSpeechRecognition() {
+function restoreChatHistory() {
+  try {
+    const raw = sessionStorage.getItem('polar_voice_chat_history');
+    if (!raw) return;
+    const history = JSON.parse(raw);
+    if (!Array.isArray(history) || history.length === 0) return;
+
+    const box = document.getElementById('voiceChatBox');
+    if (!box) return;
+
+    history.forEach(item => {
+      if (item && item.text && item.sender) {
+        const msg = document.createElement('div');
+        msg.className = `voice-msg ${item.sender}`;
+        msg.textContent = item.text;
+        box.appendChild(msg);
+      }
+    });
+
+    requestAnimationFrame(() => {
+      box.scrollTop = box.scrollHeight;
+    });
+  } catch (e) {
+    console.warn("[Voice Copilot] Error restoring chat history:", e);
+  }
+}
+
+/**
+ * Split text into complete sentence/clause chunks.
+ * CRITICAL: Guaranteed to never drop the final fragment even if unpunctuated.
+ */
+function prepareSpeechQueue(fullText) {
+  if (!fullText) return [];
+
+  // Clean markdown, symbols, excess whitespace
+  const clean = fullText
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[*_#`~>\[\]\(\)]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!clean) return [];
+
+  // Matches full sentences up to period/exclamation/question mark followed by space, newline, or end of string.
+  // Preserves decimals (e.g. 85.0%, 10.3 kW) and unpunctuated final clauses without dropping any text.
+  const matches = clean.match(/.+?(?:[.!?](?=\s|$|\n)|\n|$)/g);
+  const rawSentences = matches ? matches.map(s => s.trim()).filter(s => s.length > 0) : [clean];
+
+  const queue = [];
+  for (const sentence of rawSentences) {
+    if (sentence.length <= 150) {
+      queue.push(sentence);
+    } else {
+      // Split long clauses by commas or colons without dropping fragments
+      const subParts = sentence.match(/[^,;:]+[,;:]?/g) || [sentence];
+      let currentPart = '';
+      for (const part of subParts) {
+        if ((currentPart + ' ' + part).trim().length < 150) {
+          currentPart = (currentPart + ' ' + part).trim();
+        } else {
+          if (currentPart) queue.push(currentPart);
+          currentPart = part.trim();
+        }
+      }
+      if (currentPart) queue.push(currentPart);
+    }
+  }
+
+  return queue.length > 0 ? queue : [clean];
+}
+
+/**
+ * Create and start a fresh SpeechRecognition instance.
+ * Ensures unbroken continuous listening across infinite turns.
+ */
+function createAndStartRecognition() {
+  if (!isModalOpen()) {
+    console.log("[Voice Copilot] Recognition aborted: modal is closed.");
+    return;
+  }
+
+  // Self-healing: if isSpeaking flag was left true but synthesis engine is idle, recover immediately
+  if (isSpeaking && window.speechSynthesis && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+    console.warn("[Voice Copilot] Self-healing: isSpeaking was true but synthesis is idle. Resetting isSpeaking to false.");
+    isSpeaking = false;
+  }
+
+  if (isSpeaking || currentState === VoiceState.PROCESSING) {
+    console.log("[Voice Copilot] Recognition aborted: assistant is speaking or processing.");
+    return;
+  }
+
+  const thisSession = ++recognitionSessionId;
+
+  // Fully dispose old instance to eliminate stale sockets/listeners
+  if (recognition) {
+    try {
+      recognition.onstart = null;
+      recognition.onaudiostart = null;
+      recognition.onsoundstart = null;
+      recognition.onspeechstart = null;
+      recognition.onspeechend = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.abort();
+    } catch (e) {}
+    recognition = null;
+  }
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    console.warn("[Voice Copilot] Web Speech Recognition API is unavailable in this browser.");
+    console.warn("[Voice Copilot] Web Speech Recognition API unavailable in this browser.");
+    setVoiceState(VoiceState.STANDBY, "Speech recognition unavailable in this browser.");
     return;
   }
 
   try {
     recognition = new SpeechRecognition();
-    recognition.continuous = false; // Turn-based segmenting is most reliable with browser TTS handoff
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
+      if (thisSession !== recognitionSessionId) return;
+      console.log(`[Recognition #${thisSession}] onstart: Microphone is LIVE and actively capturing.`);
+      clearTimeout(speechEndTimeout);
       clearTimeout(silenceRestartTimeout);
-      setVoiceState(VoiceState.LISTENING);
+      // ONLY turn indicator green when browser confirms microphone is actually active
+      setVoiceState(VoiceState.LISTENING, "Listening... Speak your command");
     };
 
-    recognition.onresult = async (event) => {
-      // Guard against late recognition firing while assistant is speaking
-      if (isSpeaking) {
-        console.warn("[Voice Copilot] Ignored STT result while assistant is speaking.");
+    recognition.onaudiostart = () => {
+      if (thisSession !== recognitionSessionId) return;
+      console.log(`[Recognition #${thisSession}] onaudiostart: Audio pipeline receiving stream.`);
+    };
+
+    recognition.onspeechstart = () => {
+      if (thisSession !== recognitionSessionId) return;
+      console.log(`[Recognition #${thisSession}] onspeechstart: User speech detected.`);
+    };
+
+    recognition.onspeechend = () => {
+      if (thisSession !== recognitionSessionId) return;
+      console.log(`[Recognition #${thisSession}] onspeechend: Speech segment ended.`);
+    };
+
+    recognition.onresult = (event) => {
+      if (thisSession !== recognitionSessionId) return;
+      if (isSpeaking || currentState === VoiceState.PROCESSING) {
         return;
       }
 
-      if (!event.results || !event.results[0] || !event.results[0][0]) return;
-      const transcript = event.results[0][0].transcript.trim();
-      if (!transcript) return;
+      let interim = '';
+      let final = '';
 
-      console.log(`[Voice Copilot Heard]: "${transcript}"`);
-
-      // 1. Check for verbal stop / exit commands
-      if (isStopCommand(transcript)) {
-        appendVoiceMessage(transcript, 'user');
-        handleVerbalStop();
-        return;
+      for (let i = 0; i < event.results.length; ++i) {
+        const text = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          final += text + ' ';
+        } else {
+          interim += text;
+        }
       }
 
-      // 2. Transition immediately to PROCESSING and ensure mic stops capturing
-      appendVoiceMessage(transcript, 'user');
-      setVoiceState(VoiceState.PROCESSING);
-      stopRecognitionOnly();
+      accumulatedTranscript = final.trim();
+      const currentSpoken = (accumulatedTranscript ? accumulatedTranscript + ' ' : '') + interim;
+      const cleanSpoken = currentSpoken.trim();
 
-      // 3. Dispatch agent query
-      await sendAgentQuery(transcript);
+      if (cleanSpoken) {
+        console.log(`[Recognition #${thisSession}] Heard: "${cleanSpoken}"`);
+        setVoiceState(VoiceState.LISTENING, `Hearing: "${cleanSpoken}"`);
+        const inp = document.getElementById('inpVoiceText');
+        if (inp) inp.value = cleanSpoken;
+
+        // Reset silence debounce timer: 1.8s of silence after speaking auto-submits query
+        clearTimeout(speechEndTimeout);
+        speechEndTimeout = setTimeout(() => {
+          const phrase = accumulatedTranscript || cleanSpoken;
+          if (phrase && isModalOpen() && !isSpeaking && currentState === VoiceState.LISTENING) {
+            console.log(`[Recognition #${thisSession}] Silence debounce expired. Submitting spoken phrase: "${phrase}"`);
+            accumulatedTranscript = '';
+            if (inp) inp.value = '';
+            submitSpokenText(phrase);
+          }
+        }, 1800);
+      }
     };
 
     recognition.onerror = (event) => {
-      console.warn("[Voice Recognition Event Error]:", event.error);
+      if (thisSession !== recognitionSessionId) return;
+      console.warn(`[Recognition #${thisSession}] onerror: ${event.error}`);
 
-      // Gracefully handle no-speech timeout without breaking continuous mode
-      if (event.error === 'no-speech') {
-        if (!isSpeaking && isContinuousMode && isModalOpen() && currentState === VoiceState.LISTENING) {
-          clearTimeout(silenceRestartTimeout);
-          silenceRestartTimeout = setTimeout(() => {
-            if (!isSpeaking && isContinuousMode && isModalOpen() && currentState === VoiceState.LISTENING) {
-              startListening();
-            }
-          }, 400);
-        }
+      // 'no-speech' and 'aborted' are normal during pauses
+      if (event.error === 'no-speech' || event.error === 'aborted') {
         return;
       }
 
       if (event.error === 'not-allowed') {
-        showToast("Microphone access denied. Please enable mic permissions.", "error");
-        stopEverything();
+        console.warn(`[Recognition #${thisSession}] Microphone permission or user gesture needed.`);
+        setVoiceState(VoiceState.STANDBY, "Mic paused. Click '🎙️ Speak' to talk.");
         return;
       }
 
-      // For network or aborted errors, don't crash
-      if (event.error === 'aborted') {
-        return;
+      // If audio-capture or network error, reset state so it doesn't stay in fake LISTENING
+      setVoiceState(VoiceState.STANDBY, "Reconnecting microphone...");
+      if (isModalOpen() && !isSpeaking && currentState !== VoiceState.PROCESSING) {
+        clearTimeout(silenceRestartTimeout);
+        silenceRestartTimeout = setTimeout(() => {
+          if (isModalOpen() && !isSpeaking && currentState !== VoiceState.PROCESSING) {
+            console.log(`[Recognition #${thisSession}] Retrying recognition start after error...`);
+            createAndStartRecognition();
+          }
+        }, 600);
       }
     };
 
     recognition.onend = () => {
-      // INVARIANT: recognition.abort() triggers onend, but if isSpeaking is true, DO NOT restart!
-      if (isSpeaking) {
-        return;
-      }
+      if (thisSession !== recognitionSessionId) return;
+      console.log(`[Recognition #${thisSession}] onend: Session ended.`);
 
-      // If we are supposed to be LISTENING and continuous mode is active, restart seamlessly
-      if (currentState === VoiceState.LISTENING && isContinuousMode && isModalOpen()) {
+      // If modal is open and we are supposed to be LISTENING, revive with fresh session
+      if (isModalOpen() && !isSpeaking && currentState === VoiceState.LISTENING) {
+        console.log(`[Recognition #${thisSession}] Reviving fresh recognition session after unexpected onend.`);
         clearTimeout(silenceRestartTimeout);
         silenceRestartTimeout = setTimeout(() => {
-          if (!isSpeaking && currentState === VoiceState.LISTENING && isContinuousMode && isModalOpen()) {
-            startListening();
+          if (isModalOpen() && !isSpeaking && currentState !== VoiceState.PROCESSING) {
+            createAndStartRecognition();
           }
-        }, 300);
+        }, 400);
       }
     };
+
+    console.log(`[Recognition #${thisSession}] Calling recognition.start()...`);
+    recognition.start();
   } catch (err) {
-    console.error("[Voice Copilot Init Error]:", err);
+    console.warn(`[Recognition #${thisSession}] Start exception:`, err);
+    setVoiceState(VoiceState.STANDBY, "Click '🎙️ Speak' to talk.");
   }
 }
 
 /**
- * Check if the user said a command to terminate the continuous conversation
+ * Submit spoken transcript to agent query
  */
-function isStopCommand(transcript) {
-  const normalized = transcript.toLowerCase();
-  const stopKeywords = [
-    'stop listening',
-    'stop assistant',
-    'shut down',
-    'stand down',
-    'goodbye',
-    'bye bye',
-    'turn off mic',
-    'cancel listening',
-    'stop talking',
-    'exit copilot'
-  ];
-  if (stopKeywords.some(kw => normalized.includes(kw))) return true;
-  if (/^(stop|exit|goodbye|bye|mute|standdown)$/i.test(normalized)) return true;
-  return false;
-}
+async function submitSpokenText(transcript) {
+  clearTimeout(speechEndTimeout);
+  const clean = transcript.trim();
+  if (!clean) return;
 
-/**
- * Handle verbal request to stop
- */
-function handleVerbalStop() {
-  isContinuousMode = false;
+  // Make sure prior TTS is stopped and speaking state reset
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  isSpeaking = false;
+
+  console.log(`[Voice Copilot Submitting]: "${clean}"`);
+
+  // 1. Transition immediately to PROCESSING and pause mic
+  appendVoiceMessage(clean, 'user');
+  setVoiceState(VoiceState.PROCESSING);
   stopRecognitionOnly();
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-  
-  const text = "Standing down. Conversational voice copilot switched to standby mode.";
-  appendVoiceMessage(text, 'assistant');
-  setVoiceState(VoiceState.SPEAKING);
 
-  // Speak the goodbye without auto-relaunching listening
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.05;
-  utterance.onend = () => {
-    setVoiceState(VoiceState.STANDBY, "Standing Down (Standby)");
-  };
-  utterance.onerror = () => {
-    setVoiceState(VoiceState.STANDBY);
-  };
-  window.speechSynthesis.speak(utterance);
+  // 2. Dispatch agent query
+  await sendAgentQuery(clean);
 }
 
 /**
  * Start listening turn
  */
 export function startListening() {
-  // Invariant check: If currently speaking, recognition MUST NOT start
-  if (isSpeaking) {
-    console.warn("[Voice Copilot] startListening blocked because isSpeaking === true");
-    return;
-  }
-
-  // Ensure we do not listen while synthesis is running!
   if (window.speechSynthesis && window.speechSynthesis.speaking) {
     window.speechSynthesis.cancel();
   }
+  isSpeaking = false;
+  currentUtterance = null;
+  clearTimeout(ttsCooldownTimeout);
+  clearTimeout(speechEndTimeout);
+  clearTimeout(silenceRestartTimeout);
+  clearTimeout(chunkWatchdog);
+  accumulatedTranscript = '';
 
-  if (!recognition) {
-    setupSpeechRecognition();
-  }
-
-  if (recognition) {
-    clearTimeout(retryRecognitionTimeout);
-    clearTimeout(silenceRestartTimeout);
-    clearTimeout(ttsCooldownTimeout);
-    try {
-      recognition.start();
-      setVoiceState(VoiceState.LISTENING);
-    } catch (e) {
-      // If already started (InvalidStateError), keep listening state
-      if (e.name === 'InvalidStateError') {
-        setVoiceState(VoiceState.LISTENING);
-      } else {
-        console.warn("[Recognition Start Error]:", e);
-      }
-    }
-  }
+  setVoiceState(VoiceState.STANDBY, "Activating microphone...");
+  createAndStartRecognition();
 }
 
 /**
- * Stop speech recognition without canceling continuous mode
+ * Stop speech recognition cleanly
  */
 function stopRecognitionOnly() {
   clearTimeout(retryRecognitionTimeout);
   clearTimeout(silenceRestartTimeout);
   clearTimeout(ttsCooldownTimeout);
+  clearTimeout(speechEndTimeout);
   if (recognition) {
     try {
+      recognition.onstart = null;
+      recognition.onaudiostart = null;
+      recognition.onsoundstart = null;
+      recognition.onspeechstart = null;
+      recognition.onspeechend = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
       recognition.abort();
-    } catch (e) {
-      // Ignored
-    }
+    } catch (e) {}
+    recognition = null;
   }
 }
 
@@ -237,7 +376,7 @@ function stopRecognitionOnly() {
  * Stop everything and return to Standby
  */
 export function stopEverything() {
-  isContinuousMode = false;
+  console.log("[Voice Copilot] stopEverything called.");
   isSpeaking = false;
   activeRequestId = null;
   if (activeAbortController) {
@@ -247,15 +386,50 @@ export function stopEverything() {
   clearTimeout(retryRecognitionTimeout);
   clearTimeout(silenceRestartTimeout);
   clearTimeout(ttsCooldownTimeout);
+  clearTimeout(speechEndTimeout);
+  clearTimeout(chunkWatchdog);
+  clearInterval(ttsKeepaliveInterval);
+
+  speechQueue = [];
+  speechQueueIndex = 0;
 
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
   }
   currentUtterance = null;
+  accumulatedTranscript = '';
 
   stopRecognitionOnly();
   setVoiceState(VoiceState.STANDBY, "Copilot on Standby");
-  showToast("Voice assistant switched to Standby", "info");
+  showToast("Voice assistant paused", "info");
+}
+
+/**
+ * Open Voice Modal Window and persist state
+ */
+export function openModal() {
+  const modal = document.getElementById('voiceModal');
+  if (modal) {
+    modal.classList.add('open');
+    try {
+      localStorage.setItem('polar_voice_modal_open', 'true');
+    } catch (e) {}
+  }
+}
+
+/**
+ * Close Voice Modal Window (ONLY triggered by explicit Cross ✕ button click)
+ */
+export function closeModal() {
+  console.log("[Voice Copilot] closeModal called by cross button.");
+  const modal = document.getElementById('voiceModal');
+  if (modal) {
+    modal.classList.remove('open');
+    try {
+      localStorage.setItem('polar_voice_modal_open', 'false');
+    } catch (e) {}
+  }
+  stopEverything();
 }
 
 /**
@@ -267,7 +441,7 @@ function isModalOpen() {
 }
 
 /**
- * Update UI state indicators across FAB, Modal Badge, and Visualizer Bar
+ * Update UI state indicators across FAB, Modal Badge, Buttons, and Visualizer Bar
  */
 export function setVoiceState(state, customLabel = null) {
   currentState = state;
@@ -277,18 +451,13 @@ export function setVoiceState(state, customLabel = null) {
   const visualizer = document.getElementById('voiceVisualizer');
   const visualizerText = document.getElementById('voiceVisualizerText');
   const autoBtn = document.getElementById('btnContinuousToggle');
+  const btnModalMic = document.getElementById('btnModalMic');
 
-  // Update Auto-Mode button
+  // Auto-Mode is always ON while modal is open
   if (autoBtn) {
-    if (isContinuousMode) {
-      autoBtn.classList.add('active');
-      autoBtn.textContent = '🔄 Auto: ON';
-      autoBtn.title = 'Continuous conversation active (click to disable)';
-    } else {
-      autoBtn.classList.remove('active');
-      autoBtn.textContent = '⏸️ Auto: OFF';
-      autoBtn.title = 'Single-turn mode (click to enable auto-loop)';
-    }
+    autoBtn.classList.add('active');
+    autoBtn.textContent = '🔄 Continuous';
+    autoBtn.title = 'Continuous conversation active until cross (✕) button is clicked';
   }
 
   // Update FAB styles
@@ -319,6 +488,27 @@ export function setVoiceState(state, customLabel = null) {
     }
   }
 
+  // Update Inside-Modal Speak Button
+  if (btnModalMic) {
+    if (state === VoiceState.LISTENING) {
+      btnModalMic.classList.add('listening');
+      btnModalMic.textContent = '🛑 Done Speaking';
+      btnModalMic.title = 'Click to finish speaking and send command immediately';
+    } else if (state === VoiceState.PROCESSING) {
+      btnModalMic.classList.remove('listening');
+      btnModalMic.textContent = '⏳ Thinking...';
+      btnModalMic.title = 'Polar AI is analyzing telemetry';
+    } else if (state === VoiceState.SPEAKING) {
+      btnModalMic.classList.remove('listening');
+      btnModalMic.textContent = '⏸️ Interrupt';
+      btnModalMic.title = 'Click to interrupt speech and speak immediately';
+    } else {
+      btnModalMic.classList.remove('listening');
+      btnModalMic.textContent = '🎙️ Speak';
+      btnModalMic.title = 'Click to speak';
+    }
+  }
+
   // Update Waveform Visualizer
   if (visualizer) {
     visualizer.className = 'voice-visualizer ' + state.toLowerCase();
@@ -330,19 +520,17 @@ export function setVoiceState(state, customLabel = null) {
     } else {
       switch (state) {
         case VoiceState.LISTENING:
-          visualizerText.textContent = isContinuousMode
-            ? 'Listening... speak now (Auto-loop active)'
-            : 'Listening... speak your command';
+          visualizerText.textContent = 'Listening... Speak your question or command';
           break;
         case VoiceState.PROCESSING:
           visualizerText.textContent = 'Thinking & querying telemetry...';
           break;
         case VoiceState.SPEAKING:
-          visualizerText.textContent = 'Speaking response (Mic paused)...';
+          visualizerText.textContent = 'Speaking response... (Click Interrupt to speak)';
           break;
         case VoiceState.STANDBY:
         default:
-          visualizerText.textContent = 'Standby. Click mic to speak or enter text.';
+          visualizerText.textContent = "Standby. Click '🎙️ Speak' to talk or enter text.";
           break;
       }
     }
@@ -357,19 +545,94 @@ function bindVoiceUI() {
   const modal = document.getElementById('voiceModal');
   const btnClose = document.getElementById('btnCloseVoice');
   const btnStop = document.getElementById('btnStopVoice');
-  const autoBtn = document.getElementById('btnContinuousToggle');
   const formVoice = document.getElementById('formVoiceInput');
   const inpQuery = document.getElementById('inpVoiceText');
+  const btnModalMic = document.getElementById('btnModalMic');
+  const visualizer = document.getElementById('voiceVisualizer');
 
   // Floating Action Button
   if (fab && modal) {
     fab.addEventListener('click', () => {
-      modal.classList.toggle('open');
-      if (modal.classList.contains('open')) {
-        isContinuousMode = true;
+      if (!modal.classList.contains('open')) {
+        openModal();
         startListening();
       } else {
-        stopEverything();
+        // When modal is ALREADY OPEN: Toggle listening turn
+        if (currentState === VoiceState.LISTENING) {
+          if (accumulatedTranscript.trim()) {
+            const text = accumulatedTranscript.trim();
+            accumulatedTranscript = '';
+            submitSpokenText(text);
+          } else {
+            stopRecognitionOnly();
+            setVoiceState(VoiceState.STANDBY, "Mic paused. Click '🎙️ Speak' to talk.");
+          }
+        } else if (currentState === VoiceState.SPEAKING) {
+          if (window.speechSynthesis) window.speechSynthesis.cancel();
+          clearInterval(ttsKeepaliveInterval);
+          clearTimeout(chunkWatchdog);
+          speechQueue = [];
+          speechQueueIndex = 0;
+          isSpeaking = false;
+          startListening();
+        } else {
+          startListening();
+        }
+      }
+    });
+  }
+
+  // Direct Speak / Done Button in modal form
+  if (btnModalMic) {
+    btnModalMic.addEventListener('click', () => {
+      if (currentState === VoiceState.LISTENING) {
+        if (accumulatedTranscript.trim()) {
+          const text = accumulatedTranscript.trim();
+          accumulatedTranscript = '';
+          submitSpokenText(text);
+        } else {
+          stopRecognitionOnly();
+          setVoiceState(VoiceState.STANDBY, "Mic paused. Click '🎙️ Speak' to talk.");
+        }
+      } else if (currentState === VoiceState.SPEAKING) {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        clearInterval(ttsKeepaliveInterval);
+        clearTimeout(chunkWatchdog);
+        speechQueue = [];
+        speechQueueIndex = 0;
+        isSpeaking = false;
+        startListening();
+      } else {
+        startListening();
+      }
+    });
+  }
+
+  // Clickable Visualizer Bar
+  if (visualizer) {
+    visualizer.style.cursor = 'pointer';
+    visualizer.title = 'Click to toggle microphone or interrupt';
+    visualizer.addEventListener('click', (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      if (currentState === VoiceState.LISTENING) {
+        if (accumulatedTranscript.trim()) {
+          const text = accumulatedTranscript.trim();
+          accumulatedTranscript = '';
+          submitSpokenText(text);
+        } else {
+          stopRecognitionOnly();
+          setVoiceState(VoiceState.STANDBY, "Mic paused. Click '🎙️ Speak' to talk.");
+        }
+      } else if (currentState === VoiceState.SPEAKING) {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        clearInterval(ttsKeepaliveInterval);
+        clearTimeout(chunkWatchdog);
+        speechQueue = [];
+        speechQueueIndex = 0;
+        isSpeaking = false;
+        startListening();
+      } else {
+        startListening();
       }
     });
   }
@@ -378,27 +641,14 @@ function bindVoiceUI() {
   if (btnStop) {
     btnStop.addEventListener('click', () => {
       stopEverything();
-      appendVoiceMessage("⏹ Voice copilot paused and switched to standby.", "assistant");
+      appendVoiceMessage("⏹ Voice copilot paused. Click '🎙️ Speak' to resume.", "assistant");
     });
   }
 
-  // Continuous Mode Toggle Button
-  if (autoBtn) {
-    autoBtn.addEventListener('click', () => {
-      isContinuousMode = !isContinuousMode;
-      if (isContinuousMode && isModalOpen() && currentState === VoiceState.STANDBY) {
-        startListening();
-      } else {
-        setVoiceState(currentState);
-      }
-    });
-  }
-
-  // Close Button
+  // Close Button (THE ONLY ACTION THAT CLOSES THE WINDOW AND TERMINATES LOOP)
   if (btnClose && modal) {
     btnClose.addEventListener('click', () => {
-      modal.classList.remove('open');
-      stopEverything();
+      closeModal();
     });
   }
 
@@ -422,7 +672,6 @@ function bindVoiceUI() {
  * Send natural query to backend FastAPI / Ollama engine
  */
 async function sendAgentQuery(query) {
-  // Cancel any prior pending network query to eliminate async race conditions
   if (activeAbortController) {
     try { activeAbortController.abort(); } catch (e) {}
   }
@@ -449,7 +698,6 @@ async function sendAgentQuery(query) {
       thinkingEl.remove();
     }
 
-    // Discard stale out-of-order responses from prior overlapping queries
     if (!res || (res.request_id && res.request_id !== activeRequestId) || activeRequestId !== requestId) {
       console.warn(`[Voice Copilot] Discarded stale async response (${res?.request_id} !== active ${activeRequestId})`);
       return;
@@ -472,6 +720,12 @@ async function sendAgentQuery(query) {
 
       appendVoiceMessage(displayText, 'assistant');
       speakText(spokenText);
+
+      // Trigger instant UI refresh for Science Scheduler and Dashboard if activities changed
+      const modIntents = ['CREATE_ACTIVITY', 'DELETE_ACTIVITY', 'UPDATE_ACTIVITY', 'RESCHEDULE_ACTIVITY'];
+      if (typeof res.response === 'object' && modIntents.includes(res.response.intent)) {
+        window.dispatchEvent(new CustomEvent('polar:activitiesUpdated', { detail: res.response }));
+      }
     } else {
       appendVoiceMessage("Operational telemetry update complete.", 'assistant');
       speakText("Operational telemetry update complete.");
@@ -485,14 +739,14 @@ async function sendAgentQuery(query) {
       thinkingEl.remove();
     }
     console.error("[Voice Assistant API Error]:", err);
-    const errorMsg = `⚠️ Communications Notice: Cannot connect to Polar AI backend (${err.message}).\n\nEnsure backend is running: 'python -m uvicorn backend.main:app --port 8000'`;
+    const errorMsg = `⚠️ Communications Notice: Cannot connect to Polar AI backend (${err.message}).\n\nEnsure backend is running: python -m uvicorn backend.main:app --port 8000`;
     appendVoiceMessage(errorMsg, 'assistant');
     speakText("Notice: Communications link to Polar AI backend failed. Verify server is running.");
   }
 }
 
 /**
- * Append message bubble to chat box
+ * Append message bubble to chat box and persist in sessionStorage
  */
 function appendVoiceMessage(text, sender) {
   const box = document.getElementById('voiceChatBox');
@@ -502,87 +756,191 @@ function appendVoiceMessage(text, sender) {
   msg.className = `voice-msg ${sender}`;
   msg.textContent = text;
   box.appendChild(msg);
-  box.scrollTop = box.scrollHeight;
+
+  // Persist genuine messages (skip ephemeral thinking indicator)
+  if (!sender.includes('thinking-indicator')) {
+    try {
+      const raw = sessionStorage.getItem('polar_voice_chat_history');
+      const history = raw ? JSON.parse(raw) : [];
+      history.push({ text, sender });
+      if (history.length > 50) history.shift();
+      sessionStorage.setItem('polar_voice_chat_history', JSON.stringify(history));
+    } catch (e) {}
+  }
+
+  requestAnimationFrame(() => {
+    box.scrollTop = box.scrollHeight;
+  });
+
   return msg;
 }
 
 /**
  * Speak text response using Web Speech Synthesis (TTS)
- * Strictly pauses Speech Recognition during speech to prevent feedback loop!
+ * Full sentence queue guarantees 100% speech output without any dropped sentences
  */
 export function speakText(text) {
   if (!window.speechSynthesis || !text) {
     isSpeaking = false;
-    // If TTS unavailable, resume listening immediately if continuous
-    if (isContinuousMode && isModalOpen()) {
-      startListening();
-    } else {
-      setVoiceState(VoiceState.STANDBY);
-    }
+    resumeListeningAfterTTS();
     return;
   }
 
   try {
-    // 1. Mark system as speaking immediately to lock all STT restarts
     isSpeaking = true;
-
-    // 2. Abort/stop active speech recognition
     stopRecognitionOnly();
-
-    // 3. Cancel any conflicting existing speech
-    window.speechSynthesis.cancel();
+    clearInterval(ttsKeepaliveInterval);
+    clearTimeout(ttsCooldownTimeout);
+    clearTimeout(chunkWatchdog);
 
     setVoiceState(VoiceState.SPEAKING);
 
-    // Clean formatting: strip markdown, URLs, and code blocks
-    const clean = text
-      .replace(/https?:\/\/\S+/g, '')
-      .replace(/[*_#`~>\[\]\(\)]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    // Prepare robust queue of sentences; guaranteed zero dropped text
+    speechQueue = prepareSpeechQueue(text);
+    speechQueueIndex = 0;
 
-    const utterance = new SpeechSynthesisUtterance(clean);
-    currentUtterance = utterance; // Prevent GC bug in Chrome/Edge
-    utterance.rate = 1.05;
-    utterance.pitch = 0.98;
+    console.log(`[TTS] Beginning playback of ${speechQueue.length} speech chunks for: "${text.substring(0, 60)}..."`);
 
-    utterance.onstart = () => {
-      isSpeaking = true;
-      setVoiceState(VoiceState.SPEAKING);
-    };
-
-    const onSpeechComplete = () => {
-      currentUtterance = null;
-      isSpeaking = false;
-
-      // Wait ~300 ms before restarting recognition to ensure mic does not capture speaker echo
-      clearTimeout(ttsCooldownTimeout);
-      ttsCooldownTimeout = setTimeout(() => {
-        // Only restart if recognition is still intended to be active
-        if (!isSpeaking && isContinuousMode && isModalOpen()) {
-          startListening();
-        } else if (!isSpeaking) {
-          setVoiceState(VoiceState.STANDBY);
+    // Non-destructive Chromium keepalive: only calls resume() if paused
+    ttsKeepaliveInterval = setInterval(() => {
+      if (window.speechSynthesis) {
+        if (window.speechSynthesis.paused) {
+          console.log("[TTS Keepalive] Detected paused state. Calling window.speechSynthesis.resume().");
+          window.speechSynthesis.resume();
         }
-      }, 300);
-    };
+      } else if (!isSpeaking) {
+        clearInterval(ttsKeepaliveInterval);
+      }
+    }, 3000);
 
-    utterance.onend = () => {
-      onSpeechComplete();
-    };
-
-    utterance.onerror = (e) => {
-      console.warn("[TTS Speech Error]:", e);
-      onSpeechComplete();
-    };
-
-    // 4. Start TTS
-    window.speechSynthesis.speak(utterance);
+    // If speech synthesis is currently active or pending, cancel first with a 60ms settle delay
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        if (isSpeaking) {
+          speakNextChunk();
+        }
+      }, 60);
+    } else {
+      speakNextChunk();
+    }
   } catch (e) {
     console.warn("[Speech Synthesis Exception]:", e);
     isSpeaking = false;
-    setVoiceState(VoiceState.STANDBY);
+    clearInterval(ttsKeepaliveInterval);
+    resumeListeningAfterTTS();
   }
+}
+
+/**
+ * Play next sentence in sequential queue
+ */
+function speakNextChunk() {
+  if (!isSpeaking) return;
+  clearTimeout(chunkWatchdog);
+
+  if (speechQueueIndex >= speechQueue.length) {
+    console.log(`[TTS] Finished all ${speechQueue.length} chunks. Complete answer successfully spoken 100%.`);
+    onAllSpeechComplete();
+    return;
+  }
+
+  const chunkText = speechQueue[speechQueueIndex++];
+  const utterance = new SpeechSynthesisUtterance(chunkText);
+  currentUtterance = utterance; // Keep reference to prevent garbage collection
+  utterance.rate = 1.05;
+  utterance.pitch = 0.98;
+
+  utterance.onstart = () => {
+    console.log(`[TTS Chunk ${speechQueueIndex}/${speechQueue.length}] onstart: "${chunkText.substring(0, 45)}..."`);
+    isSpeaking = true;
+    setVoiceState(VoiceState.SPEAKING);
+  };
+
+  utterance.onpause = () => {
+    console.log(`[TTS Chunk ${speechQueueIndex}/${speechQueue.length}] onpause. Resuming.`);
+    if (window.speechSynthesis) window.speechSynthesis.resume();
+  };
+
+  utterance.onend = () => {
+    console.log(`[TTS Chunk ${speechQueueIndex}/${speechQueue.length}] onend: Completed successfully.`);
+    clearTimeout(chunkWatchdog);
+    speakNextChunk();
+  };
+
+  utterance.onerror = (e) => {
+    clearTimeout(chunkWatchdog);
+    console.warn(`[TTS Chunk ${speechQueueIndex}/${speechQueue.length}] onerror (${e.error}):`, e);
+    // CRITICAL: Never leave the assistant deadlocked in isSpeaking = true!
+    if (e.error === 'interrupted' || e.error === 'canceled') {
+      onAllSpeechComplete();
+      return;
+    }
+    if (speechQueueIndex < speechQueue.length) {
+      speakNextChunk();
+    } else {
+      onAllSpeechComplete();
+    }
+  };
+
+  // Watchdog per chunk: 10 seconds is plenty for a chunk of <= 150 chars
+  chunkWatchdog = setTimeout(() => {
+    if (isSpeaking) {
+      console.warn(`[TTS Chunk Watchdog] Chunk ${speechQueueIndex} took >10s. Advancing or completing.`);
+      if (speechQueueIndex < speechQueue.length) {
+        speakNextChunk();
+      } else {
+        onAllSpeechComplete();
+      }
+    }
+  }, 10000);
+
+  window.speechSynthesis.speak(utterance);
+  // Ensure speech synthesis does not stay in suspended/paused queue
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+  }
+}
+
+/**
+ * Handle successful completion of all speech chunks:
+ * Once the assistant has spoken 100% of its response, resumes listening.
+ */
+function onAllSpeechComplete() {
+  clearTimeout(chunkWatchdog);
+  currentUtterance = null;
+  isSpeaking = false;
+  clearInterval(ttsKeepaliveInterval);
+
+  console.log("[TTS] onAllSpeechComplete reached. Transitioning back to listening.");
+  resumeListeningAfterTTS();
+}
+
+/**
+ * Switch from speaking back to listening with hardware audio release delay
+ */
+function resumeListeningAfterTTS() {
+  isSpeaking = false;
+  clearInterval(ttsKeepaliveInterval);
+  clearTimeout(chunkWatchdog);
+  currentUtterance = null;
+
+  if (!isModalOpen()) {
+    setVoiceState(VoiceState.STANDBY);
+    return;
+  }
+
+  // Set transitioning state while hardware audio switches - NEVER show fake LISTENING!
+  setVoiceState(VoiceState.STANDBY, "Response complete. Opening microphone...");
+
+  clearTimeout(ttsCooldownTimeout);
+  // Controlled 500ms cooldown allows Windows audio driver to cleanly release speaker output channel
+  ttsCooldownTimeout = setTimeout(() => {
+    if (!isSpeaking && isModalOpen() && currentState !== VoiceState.PROCESSING) {
+      console.log("[Voice Copilot] Audio cooldown elapsed. Creating fresh recognition session...");
+      createAndStartRecognition();
+    }
+  }, 500);
 }
 
 // Auto-initialize on load
