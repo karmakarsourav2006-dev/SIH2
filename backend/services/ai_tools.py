@@ -67,7 +67,7 @@ class AITools:
         """Returns all scientific experiments, operations queue, and slot recommendations."""
         with get_db() as conn:
             rows = conn.execute(
-                "SELECT * FROM activities WHERE station_id = ? ORDER BY priority ASC",
+                "SELECT rowid, * FROM activities WHERE station_id = ? ORDER BY rowid DESC",
                 (station_id,)
             ).fetchall()
             return [dict(r) for r in rows]

@@ -186,6 +186,28 @@ class ConversationManager:
                 req_ctx.tool_result = AITools.simulate_activity(station_id=station_id, name=act_name, required_kwh=30.0, duration_hrs=3.0)
                 session.last_topic = "simulation"
 
+            elif req_ctx.selected_tool == "create_activity":
+                name = req_ctx.entities.get("name") or "Ad-Hoc Polar Mission"
+                kwh = float(req_ctx.entities.get("required_kwh", 20.0))
+                dur = float(req_ctx.entities.get("duration_hrs", 2.0))
+                req_ctx.tool_arguments = {
+                    "station_id": station_id,
+                    "name": name,
+                    "required_kwh": kwh,
+                    "duration_hrs": dur
+                }
+                req_ctx.tool_result = AITools.create_activity(
+                    station_id=station_id,
+                    name=name,
+                    required_kwh=kwh,
+                    duration_hrs=dur,
+                    deadline_hrs=24.0,
+                    priority=2
+                )
+                session.last_activity_name = name
+                session.last_activity_id = req_ctx.tool_result.get("activity_id")
+                session.last_topic = "activity_created"
+
             elif req_ctx.selected_tool == "get_station_status":
                 req_ctx.tool_result = AITools.get_station_status(station_id)
                 session.last_topic = "station_status"
@@ -205,14 +227,34 @@ class ConversationManager:
         user_content = f"User Question: {resolved_query}\nDirect Answer:"
 
         if req_ctx.detected_intent == "GENERAL_CONVERSATION":
-            # For identity / capabilities / greetings: NO station tools or telemetry!
-            system_prompt = (
-                f"You are BOREAS AI, the autonomous energy management copilot for Antarctic Research Station {station_id}. "
-                f"Answer the user's question directly in 1-2 professional, concise sentences about your identity or capabilities. "
-                f"You monitor live microgrid telemetry, optimize battery storage, forecast solar/wind windows, "
-                f"schedule polar research activities, and manage emergency load shedding. Do not recite station telemetry numbers."
-            )
-            user_content = f"User Question: {resolved_query}\nAnswer directly in 1-2 sentences:"
+            topic = req_ctx.entities.get("topic")
+            if topic == "gratitude":
+                system_prompt = (
+                    f"You are BOREAS AI, the station copilot. The user is saying thank you. "
+                    f"Respond strictly with: You are welcome! Happy to assist with station operations."
+                )
+                user_content = f"User: {resolved_query}\nDirect Reply:"
+            elif topic == "praise":
+                system_prompt = (
+                    f"You are BOREAS AI, the station copilot. The user is complimenting you with words like 'nice' or 'great job'. "
+                    f"Respond strictly with: Glad you liked it! Always standing by to keep the polar microgrid running smoothly."
+                )
+                user_content = f"User: {resolved_query}\nDirect Reply:"
+            elif topic == "wellbeing":
+                system_prompt = (
+                    f"You are BOREAS AI, the station copilot. The user asks how you are doing. "
+                    f"Respond strictly with: I am doing great, all systems are nominal and I am standing by to assist you."
+                )
+                user_content = f"User: {resolved_query}\nDirect Reply:"
+            else:
+                # For identity / capabilities / greetings: NO station tools or telemetry!
+                system_prompt = (
+                    f"You are BOREAS AI, the autonomous energy management copilot for Antarctic Research Station {station_id}. "
+                    f"Answer the user's question directly in 1-2 professional, concise sentences about your identity or capabilities. "
+                    f"You monitor live microgrid telemetry, optimize battery storage, forecast solar/wind windows, "
+                    f"schedule polar research activities, and manage emergency load shedding. Do not recite station telemetry numbers."
+                )
+                user_content = f"User Question: {resolved_query}\nAnswer directly in 1-2 sentences:"
 
         elif req_ctx.detected_intent == "SCHEDULE_MODIFICATION_POLICY":
             # Policy explanation: NO station status numbers!
@@ -240,9 +282,13 @@ class ConversationManager:
 
         elif req_ctx.detected_intent == "GET_SCHEDULE":
             sch = req_ctx.tool_result if isinstance(req_ctx.tool_result, list) else []
-            items = [f"- {a.get('name')}: {a.get('required_kwh')} kWh, {a.get('duration_hrs')}h ({a.get('execution_status')})" for a in sch[:3]]
+            items = [f"- {a.get('name')}: {a.get('required_kwh')} kWh, {a.get('duration_hrs')}h ({a.get('execution_status')})" for a in sch[:5]]
             data_str = "\n".join(items) if items else "No active activities queued."
-            user_content = f"Station Operations Schedule:\n{data_str}\n\nQuestion: {resolved_query}\nDirect Answer in 1-2 sentences:"
+            system_prompt = (
+                f"You are BOREAS AI. Answer the question directly in 1-2 concise sentences using the provided operations schedule. "
+                f"Specifically name the latest scheduled operations and activities listed below."
+            )
+            user_content = f"Current Station Operations Schedule (Latest first):\n{data_str}\n\nQuestion: {resolved_query}\nDirect Answer in 1-2 sentences:"
 
         elif req_ctx.detected_intent == "GET_ACTIVITY_ENERGY":
             e = req_ctx.tool_result
@@ -289,6 +335,15 @@ class ConversationManager:
             data_str = f"Operation '{sim.get('name')}' ({sim.get('required_kwh')} kWh) adds {sim.get('added_power_kw')} kW continuous draw. Projected safe runway: {sim.get('projected_safe_runway_hours')} hrs. Recommendation: {sim.get('recommendation')}."
             user_content = f"Simulation Results:\n{data_str}\n\nQuestion: {resolved_query}\nDirect Answer in 1-2 sentences:"
 
+        elif req_ctx.detected_intent == "CREATE_ACTIVITY":
+            act = req_ctx.tool_result
+            system_prompt = (
+                f"You are BOREAS AI. Confirm the creation and registration of the new scientific mission in 1-2 professional sentences. "
+                f"State its name, allocated energy, and that it has been approved and queued under Priority 2 for execution during forecasted renewable surplus."
+            )
+            data_str = f"Mission: '{act.get('name')}', ID: {act.get('activity_id')}, Required: {act.get('required_kwh')} kWh, Duration: {act.get('duration_hrs')} hours, Priority: Priority 2 Science, Status: QUEUED."
+            user_content = f"Scheduled Activity Data:\n{data_str}\n\nQuestion: {resolved_query}\nConfirmation in 1-2 sentences:"
+
         elif req_ctx.detected_intent == "RESEARCH_RAG":
             system_prompt = f"Summarize the retrieved academic research literature on polar microgrids in 2-3 concise sentences."
             user_content = f"Retrieved Literature:\n{rag_context}\n\nQuestion: {resolved_query}\nSummary:"
@@ -319,6 +374,7 @@ class ConversationManager:
             "GET_WEATHER",
             "GET_BATTERY_STATUS",
             "GET_CURRENT_ENERGY",
+            "GET_SCHEDULE",
         }
         intent_requires_history = req_ctx.detected_intent not in STANDALONE_INTENTS
 

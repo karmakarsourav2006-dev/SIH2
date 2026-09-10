@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any
 
 class AgentFallback:
@@ -47,6 +48,37 @@ class AgentFallback:
                 "voice_text": f"Current station runtime is {runtime} hours. Protected P1 life support duration is {p1_hours} hours."
             }
 
+        # 2.5 Activity Created Confirmation Fallback
+        if isinstance(context, dict) and context.get("action") == "CREATED":
+            act_name = context.get("name", "New Activity")
+            act_id = context.get("activity_id", "ACT")
+            kwh = context.get("required_kwh", 20.0)
+            hrs = context.get("duration_hrs", 2.0)
+            return {
+                "intent": "CREATE_ACTIVITY",
+                "priority": "P2 SCIENCE",
+                "explanation": f"Operation '{act_name}' ({act_id}) has been added to the station schedule. Allocated {kwh} kWh over {hrs} hours and queued for execution.",
+                "actions": [
+                    f"Registered {act_id} in SQLite database.",
+                    "Queued under Priority 2 for execution during forecasted renewable surplus."
+                ],
+                "voice_text": f"Operation '{act_name}' has been added to the station schedule and allocated {kwh} kWh."
+            }
+
+        # 2.6 Dynamic Schedule Fallback
+        if isinstance(context, list) and len(context) > 0 and ("schedule" in q or "planned" in q or "queue" in q or "activities" in q):
+            recent_names = [a.get("name", "Task") for a in context[:3]]
+            names_str = ", ".join(recent_names)
+            return {
+                "intent": "GET_SCHEDULE",
+                "priority": "P2 SCIENCE",
+                "explanation": f"Current station operations schedule includes: {names_str}. All tasks queued for execution under optimal renewable windows.",
+                "actions": [
+                    f"Queried {len(context)} scheduled operations from SQLite database."
+                ],
+                "voice_text": f"The scheduled activities include {names_str}."
+            }
+
         # 3. Ice Drill / Experiments / Green Window
         if "drill" in q or "experiment" in q or "schedule" in q or "activity" in q:
             return {
@@ -81,6 +113,36 @@ class AgentFallback:
                     "Log incident to station maintenance log."
                 ],
                 "voice_text": "Cryogenic spectrometry bay is drawing 7.6 kilowatts. Compressor valve freeze suspected. Maintenance advised."
+            }
+
+        # 4.5 Gratitude Fallback
+        if re.search(r"\b(thank you|thanks|thank you so much|thanks a lot)\b", q):
+            return {
+                "intent": "GENERAL_CONVERSATION",
+                "priority": "NOMINAL",
+                "explanation": "You're very welcome! Standing by to assist with any station operations.",
+                "actions": ["Acknowledged gratitude."],
+                "voice_text": "You're welcome! Glad to assist."
+            }
+
+        # 4.6 Praise / Compliments Fallback
+        if re.search(r"\b(nice|very nice|great job|good job|awesome|well done|good work|excellent|cool|superb|brilliant|amazing)\b", q):
+            return {
+                "intent": "GENERAL_CONVERSATION",
+                "priority": "NOMINAL",
+                "explanation": "Thank you! I'm dedicated to keeping the station running smoothly and efficiently.",
+                "actions": ["Acknowledged feedback."],
+                "voice_text": "Thank you! Always happy to keep the station running at peak efficiency."
+            }
+
+        # 4.7 Wellbeing / Status Fallback
+        if re.search(r"\b(how are you|how are you doing|how is it going|how's it going|how are things|how do you do)\b", q):
+            return {
+                "intent": "GENERAL_CONVERSATION",
+                "priority": "NOMINAL",
+                "explanation": "I am doing great! All microgrid systems and diagnostics are nominal, and I am standing by to assist with station operations.",
+                "actions": ["Diagnostic status verified nominal."],
+                "voice_text": "I am doing great! All systems are nominal and I am standing by to assist you."
             }
 
         # 5. Heating Demand & Thermal Envelope
@@ -178,6 +240,7 @@ class AgentFallback:
                 "voice_text": f"Current weather: {temp} degrees Celsius, wind {wind} meters per second, {desc}. {status_text}."
             }
 
+        # General / Catch-all
         return {
             "intent": "OPERATIONAL_STATUS",
             "priority": "NOMINAL",

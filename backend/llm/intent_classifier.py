@@ -70,7 +70,37 @@ class IntentClassifier:
                 "confidence": 0.99
             }
 
-        if not q_core or re.search(r"^(hi|hello|hey|greetings|good morning|good afternoon|good evening|thanks|thank you|how are you)\b", q):
+        # Gratitude: "thank you", "thanks", "thanks a lot", "thank you so much"
+        if re.search(r"\b(thank you|thanks|thank you very much|thanks a lot|thank you so much)\b", q):
+            return {
+                "intent": "GENERAL_CONVERSATION",
+                "entities": {"topic": "gratitude"},
+                "requires_tool": False,
+                "selected_tool": None,
+                "confidence": 0.99
+            }
+
+        # Praise / Appreciation: "nice", "very nice", "great job", "awesome", "well done", "good work", "cool", "superb"
+        if re.search(r"\b(nice|very nice|great job|good job|awesome|well done|good work|excellent|cool|superb|brilliant|amazing)\b", q):
+            return {
+                "intent": "GENERAL_CONVERSATION",
+                "entities": {"topic": "praise"},
+                "requires_tool": False,
+                "selected_tool": None,
+                "confidence": 0.99
+            }
+
+        # Wellbeing / Status Inquiry: "how are you", "how are you doing", "how's it going", "how are things"
+        if re.search(r"\b(how are you|how are you doing|how is it going|how's it going|how are things|how do you do)\b", q):
+            return {
+                "intent": "GENERAL_CONVERSATION",
+                "entities": {"topic": "wellbeing"},
+                "requires_tool": False,
+                "selected_tool": None,
+                "confidence": 0.99
+            }
+
+        if not q_core or re.search(r"^(hi|hello|hey|greetings|good morning|good afternoon|good evening|how are you)\b", q):
             # Only if no other operational question followed
             if not any(kw in q_core for kw in ["battery", "energy", "schedule", "weather", "power", "solar", "wind", "temp", "alert", "drill"]):
                 return {
@@ -121,10 +151,38 @@ class IntentClassifier:
                 "selected_tool": "reschedule_activity",
                 "confidence": 0.95
             }
-        if re.search(r"\b(create activity|add activity|new activity|register experiment|schedule new)\b", q):
+        if re.search(r"\b(create activity|add activity|new activity|register experiment|schedule new|include .* in (the )?schedule|add .* to (the )?schedule|schedule .* for|add .* for)\b", q):
+            # Extract activity name, kWh, and duration
+            kwh_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:kwh|kilowatt[- ]hours?)", q)
+            req_kwh = float(kwh_match.group(1)) if kwh_match else 20.0
+
+            hrs_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)", q)
+            duration = float(hrs_match.group(1)) if hrs_match else 2.0
+
+            # Clean parsing: look for "add <NAME> to schedule" or "include <NAME> in schedule"
+            name_extract = re.search(r"(?:add|include|schedule|register)\s+(?:new\s+)?(?:activity|task|mission|experiment\s+)?(.+?)\s+(?:to\s+(?:the\s+)?schedule|in\s+(?:the\s+)?schedule|for\s+\d+|requiring|\.|$)", q, re.IGNORECASE)
+            if name_extract:
+                candidate = name_extract.group(1).strip()
+            else:
+                candidate = q
+
+            # Strip filler clauses
+            candidate = re.sub(
+                r"\b(please|can you|could you|you have to|i want you to|we have some work|which is not included in the schedule|not included in schedule|right now|include|add|schedule|create|register|new activity|new task|experiment|to the schedule|in the schedule|to schedule|in schedule|with \d+(?:\.\d+)?\s*kwh|requiring \d+(?:\.\d+)?\s*kwh|for \d+(?:\.\d+)?\s*hours?|for \d+(?:\.\d+)?\s*hrs?)\b",
+                "",
+                candidate,
+                flags=re.IGNORECASE
+            ).strip(" ,.-:")
+
+            act_name = candidate.title() if (candidate and len(candidate) > 2) else "Ad-Hoc Polar Mission"
+
             return {
                 "intent": "CREATE_ACTIVITY",
-                "entities": {},
+                "entities": {
+                    "name": act_name,
+                    "required_kwh": req_kwh,
+                    "duration_hrs": duration
+                },
                 "requires_tool": True,
                 "selected_tool": "create_activity",
                 "confidence": 0.95
