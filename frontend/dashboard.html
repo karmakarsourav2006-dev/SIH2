@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23101923%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2711%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3Cpath d=%27M5 16h22M16 5c-8 6-8 16 0 22 8-6 8-16 0-22%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Polar Energy AI // Mission Command Deck (SIH 26061)</title>
   <link rel="stylesheet" href="css/main.css">
@@ -15,7 +16,7 @@
   <!-- TOP COMMAND BAR -->
   <header class="command-nav">
     <a href="index.html" class="nav-brand">
-      <div class="brand-icon">⚡</div>
+      <div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c-9 7-9 17 0 24 9-7 9-17 0-24Z"/><path d="m10 21 6-9 6 9"/></svg></div>
       <div class="brand-text">
         <span class="brand-name">POLAR ENERGY AI</span>
         <span class="brand-sub">MISSION COMMAND // SIH 26061</span>
@@ -23,10 +24,10 @@
     </a>
 
     <ul class="nav-links">
-      <li><a href="index.html" class="nav-link">01 OVERVIEW</a></li>
-      <li><a href="dashboard.html" class="nav-link active">02 COMMAND DECK</a></li>
-      <li><a href="researcher.html" class="nav-link">03 SCIENCE SCHEDULER</a></li>
-      <li><a href="admin.html" class="nav-link">04 ADMIN CONSOLE</a></li>
+      <li><a href="index.html" class="nav-link">Overview</a></li>
+      <li><a href="dashboard.html" class="nav-link active">Command Deck</a></li>
+      <li><a href="researcher.html" class="nav-link">Science Scheduler</a></li>
+      <li><a href="admin.html" class="nav-link">Admin</a></li>
     </ul>
 
     <div class="nav-status">
@@ -44,11 +45,9 @@
         <span class="badge-dot"></span>
         <span id="textMode">OPTIMAL DISPATCH</span>
       </div>
-      <button id="btnResetLoads" class="btn" title="Restore all loads to active ONLINE state">
-        ↺ Restore
+      <button id="btnResetLoads" class="btn" title="Restore all loads to active ONLINE state">Restore loads
       </button>
-      <button id="btnEmergencyShed" class="btn btn-danger" title="Emergency priority shedding of P2 and P3 assets">
-        🚨 Emergency Shed
+      <button id="btnEmergencyShed" class="btn btn-danger" title="Emergency priority shedding of P2 and P3 assets">Emergency shed
       </button>
     </div>
   </header>
@@ -69,71 +68,71 @@
       <!-- Solar Generation -->
       <div class="kpi-card kpi-solar">
         <div class="kpi-label">
-          <span>Bi-facial Solar</span>
+          <span>Solar generation</span>
           <span class="kpi-icon">☀️</span>
         </div>
-        <div class="kpi-value text-amber" id="kpiSolar">6.1 kW</div>
-        <div class="kpi-subtext">Sub-zero boost: +18.5%</div>
+        <div class="kpi-value text-amber" id="kpiSolar">--</div>
+        <div class="kpi-subtext">Temperature-adjusted solar generation</div>
       </div>
 
       <!-- Wind Generation -->
       <div class="kpi-card kpi-wind">
         <div class="kpi-label">
-          <span>Aerodynamic Wind</span>
+          <span>Wind generation</span>
           <span class="kpi-icon">💨</span>
         </div>
-        <div class="kpi-value text-glacier" id="kpiWind">10.3 kW</div>
-        <div class="kpi-subtext">Betz limit cubic: 12.0 m/s</div>
+        <div class="kpi-value text-glacier" id="kpiWind">--</div>
+        <div class="kpi-subtext">Wind generation at current input</div>
       </div>
 
-      <!-- Total Renewables -->
+      <!-- Renewable output -->
       <div class="kpi-card kpi-battery">
         <div class="kpi-label">
-          <span>Total Renewables</span>
+          <span>Renewable output</span>
           <span class="kpi-icon">⚡</span>
         </div>
-        <div class="kpi-value text-emerald" id="kpiRenewable">16.4 kW</div>
+        <div class="kpi-value text-emerald" id="kpiRenewable">--</div>
         <div class="kpi-subtext">Zero carbon generation</div>
       </div>
 
       <!-- Station Load Demand -->
       <div class="kpi-card kpi-demand">
         <div class="kpi-label">
-          <span>Station Demand</span>
+          <span>Station demand</span>
           <span class="kpi-icon">🔌</span>
         </div>
-        <div class="kpi-value" id="kpiDemand">25.1 kW</div>
+        <div class="kpi-value" id="kpiDemand">--</div>
         <div class="kpi-subtext">Base Heat + Active Loads</div>
       </div>
 
       <!-- Secondary Diesel Genset -->
       <div class="kpi-card kpi-gen">
         <div class="kpi-label">
-          <span>Secondary Genset</span>
+          <span>Generator backup</span>
           <span class="kpi-icon">⚙️</span>
         </div>
-        <div class="kpi-value" id="kpiGen">0.0 kW</div>
+        <div class="kpi-value" id="kpiGen">--</div>
         <div class="kpi-subtext">Standby / Fuel Reserve</div>
       </div>
 
       <!-- Battery Reserve (BESS) -->
       <div class="kpi-card kpi-battery">
         <div class="kpi-label">
-          <span>BESS LiFePO4 Reserve</span>
+          <span>Battery reserve</span>
           <span class="kpi-icon">🔋</span>
         </div>
-        <div class="kpi-value" id="kpiBattery">85.0 kWh (53%)</div>
-        <div class="kpi-subtext">Core Thermal: +15.0°C</div>
+        <div class="kpi-value" id="kpiBattery">--</div>
+        <div class="kpi-subtext">Available reserve / state of charge</div>
       </div>
 
       <!-- Net Flow Balance -->
       <div class="kpi-card kpi-net">
         <div class="kpi-label">
-          <span>Net Power Balance</span>
+          <span>Net power flow</span>
           <span class="kpi-icon">⚖️</span>
         </div>
-        <div class="kpi-value" id="kpiNet">-8.7 kW</div>
-        <div class="kpi-subtext">Battery Discharge Mode</div>
+        <div class="kpi-value" id="kpiNet">--</div>
+        <div class="kpi-subtext">Positive: surplus · Negative: deficit</div>
       </div>
     </div>
 
@@ -144,7 +143,7 @@
         <!-- Environmental Controls Card -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Environmental Telemetry & Influx Modulation</span>
+            <span class="card-title">Weather & energy controls</span>
             <span class="card-badge">LIVE DIGITAL TWIN</span>
           </div>
 
@@ -205,7 +204,7 @@
               </div>
             </div>
 
-            <!-- Secondary Genset -->
+            <!-- Generator backup -->
             <div class="slider-container">
               <div class="slider-meta">
                 <span class="slider-name">⚙️ Secondary Diesel Genset</span>
@@ -265,10 +264,12 @@
         <!-- Survivability Engine Radar Panel -->
         <div class="survivability-panel" id="survivabilityPanel">
           <div class="flex-between">
-            <span class="card-title">🛡️ Autonomous Survivability Radar & Autonomy Time</span>
+            <span class="card-title">Station survival</span>
             <span class="badge badge-normal" id="survStatusBadge">CONTINUOUS LIFE-SUPPORT</span>
           </div>
 
+          <p id="telemetryStatus" class="text-muted" role="status">ANALYZING ENERGY FLOW...</p>
+          <p id="priorityProtection" class="priority-protection" aria-live="polite">EVALUATING LOAD PRIORITIES...</p>
           <div class="survivability-display">
             <!-- Safe Hours Dial -->
             <div class="dial-unit">
@@ -278,11 +279,11 @@
                   <circle class="gauge-progress" id="gaugeSafeHours" cx="70" cy="70" r="60"/>
                 </svg>
                 <div class="gauge-center">
-                  <div class="gauge-center-val" id="valSafeHours">48.2</div>
+                  <div class="gauge-center-val" id="valSafeHours">--</div>
                   <div class="gauge-center-unit">Hours</div>
                 </div>
               </div>
-              <span class="dial-label">Safe Autonomy Runway</span>
+              <span class="dial-label">Total Station Survival</span>
             </div>
 
             <!-- P1 Isolated Hours Dial -->
@@ -293,7 +294,7 @@
                   <circle class="gauge-progress" style="stroke: #38bdf8; stroke-dashoffset: 40;" cx="70" cy="70" r="60"/>
                 </svg>
                 <div class="gauge-center">
-                  <div class="gauge-center-val" id="valP1Hours">>120</div>
+                  <div class="gauge-center-val" id="valP1Hours">--</div>
                   <div class="gauge-center-unit">Hours</div>
                 </div>
               </div>
@@ -308,7 +309,7 @@
                   <circle class="gauge-progress" style="stroke: #fb923c; stroke-dashoffset: 80;" cx="70" cy="70" r="60"/>
                 </svg>
                 <div class="gauge-center">
-                  <div class="gauge-center-val" id="valFuelDays">45.0</div>
+                  <div class="gauge-center-val" id="valFuelDays">--</div>
                   <div class="gauge-center-unit">Days</div>
                 </div>
               </div>
@@ -320,7 +321,7 @@
         <!-- Station Schematic Digital Twin Map -->
         <div class="schematic-wrapper">
           <div class="card-header" style="margin-bottom: 8px;">
-            <span class="card-title">Station Vector Microgrid Schematic // Power Routing</span>
+            <span class="card-title">Energy routing</span>
             <span class="card-badge">CLICK ASSET FOR TELEMETRY</span>
           </div>
           <div id="stationSchematicContainer"></div>
@@ -366,7 +367,7 @@
   </main>
 
   <!-- FLOATING VOICE COPILOT -->
-  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
+  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11v1a6 6 0 0 0 12 0v-1M12 18v3m-4 0h8"/></svg></button>
   <div id="voiceModal" class="voice-modal">
     <div class="voice-header">
       <div style="display:flex; align-items:center; gap:8px;">

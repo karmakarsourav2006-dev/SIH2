@@ -2,11 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23101923%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2711%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3Cpath d=%27M5 16h22M16 5c-8 6-8 16 0 22 8-6 8-16 0-22%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Polar Energy AI // Admin Console (SIH 26061)</title>
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/dashboard-redesign.css">
   <link rel="stylesheet" href="css/laser-flow.css">
 </head>
 <body>
@@ -14,7 +16,7 @@
   <!-- TOP NAVIGATION -->
   <header class="command-nav">
     <a href="index.html" class="nav-brand">
-      <div class="brand-icon">⚡</div>
+      <div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c-9 7-9 17 0 24 9-7 9-17 0-24Z"/><path d="m10 21 6-9 6 9"/></svg></div>
       <div class="brand-text">
         <span class="brand-name">POLAR ENERGY AI</span>
         <span class="brand-sub">ADMIN CONSOLE // SIH 26061</span>
@@ -22,10 +24,10 @@
     </a>
 
     <ul class="nav-links">
-      <li><a href="index.html" class="nav-link">01 OVERVIEW</a></li>
-      <li><a href="dashboard.html" class="nav-link">02 COMMAND DECK</a></li>
-      <li><a href="researcher.html" class="nav-link">03 SCIENCE SCHEDULER</a></li>
-      <li><a href="admin.html" class="nav-link active">04 ADMIN CONSOLE</a></li>
+      <li><a href="index.html" class="nav-link">Overview</a></li>
+      <li><a href="dashboard.html" class="nav-link">Command Deck</a></li>
+      <li><a href="researcher.html" class="nav-link">Science Scheduler</a></li>
+      <li><a href="admin.html" class="nav-link active">Admin</a></li>
     </ul>
 
     <div class="nav-status">
@@ -43,11 +45,9 @@
         <span class="badge-dot"></span>
         <span id="textMode">SYSADMIN ACTIVE</span>
       </div>
-      <button id="btnResetLoads" class="btn" title="Restore all loads to active ONLINE state">
-        ↺ Restore
+      <button id="btnResetLoads" class="btn" title="Restore all loads to active ONLINE state">Restore loads
       </button>
-      <button id="btnEmergencyShed" class="btn btn-danger" title="Emergency priority shedding of P2 and P3 assets">
-        🚨 Emergency Shed
+      <button id="btnEmergencyShed" class="btn btn-danger" title="Emergency priority shedding of P2 and P3 assets">Emergency shed
       </button>
     </div>
   </header>
@@ -57,7 +57,7 @@
     <!-- HERO INTRO -->
     <div class="card" style="border-left: 4px solid var(--amber);">
       <div class="card-header">
-        <span class="card-title">⚙️ Station Microgrid Hardware Configuration & Emergency Overrides</span>
+        <span class="card-title">Station Microgrid Hardware Configuration & Emergency Overrides</span>
         <span class="badge badge-warning">ELEVATED PRIVILEGES</span>
       </div>
       <p style="color: var(--text-muted); font-size: 0.84rem; line-height: 1.6;">
@@ -173,7 +173,7 @@
   </main>
 
   <!-- FLOATING VOICE COPILOT -->
-  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
+  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11v1a6 6 0 0 0 12 0v-1M12 18v3m-4 0h8"/></svg></button>
   <div id="voiceModal" class="voice-modal">
     <div class="voice-header">
       <div style="display:flex; align-items:center; gap:8px;">

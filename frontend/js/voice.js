@@ -45,6 +45,21 @@ if (!sessionId) {
 
 export function initVoiceAssistant() {
   bindVoiceUI();
+  const form = document.getElementById('formVoiceInput');
+  const input = document.getElementById('inpVoiceText');
+  if (form && input) {
+    const actions = document.createElement('div');
+    actions.className = 'advisor-quick-actions';
+    ['Report generator fault', 'Check survival horizon', 'Optimize drill schedule', 'Explain current energy state'].forEach(prompt => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn';
+      button.textContent = prompt;
+      button.addEventListener('click', () => { input.value = prompt; form.requestSubmit(); });
+      actions.appendChild(button);
+    });
+    form.before(actions);
+  }
 
   // Restore persistent chat history so previous chats never disappear
   restoreChatHistory();
@@ -710,6 +725,8 @@ async function sendAgentQuery(query) {
       if (typeof res.response === 'object') {
         displayText = res.response.explanation || res.response.voice_text || JSON.stringify(res.response);
         spokenText = res.response.voice_text || displayText;
+        if (res.response.actions?.length) displayText += '\n\nActions reported:\n' + res.response.actions.join('\n');
+        if (res.response.provider) displayText += '\nProvider: ' + res.response.provider;
         if (res.response.rag_included) {
           displayText += "\n\n📚 [Scientific Literature Retrieved via RAG]";
         }

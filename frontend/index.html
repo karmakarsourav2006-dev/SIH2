@@ -2,11 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23101923%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2711%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3Cpath d=%27M5 16h22M16 5c-8 6-8 16 0 22 8-6 8-16 0-22%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Polar Energy AI // Expedition Mission Overview (SIH 26061)</title>
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/dashboard-redesign.css">
   <link rel="stylesheet" href="css/laser-flow.css">
 </head>
 <body>
@@ -14,7 +16,7 @@
   <!-- TOP EXPEDITION NAVIGATION -->
   <header class="command-nav">
     <a href="index.html" class="nav-brand">
-      <div class="brand-icon">⚡</div>
+      <div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c-9 7-9 17 0 24 9-7 9-17 0-24Z"/><path d="m10 21 6-9 6 9"/></svg></div>
       <div class="brand-text">
         <span class="brand-name">POLAR ENERGY AI</span>
         <span class="brand-sub">SIH 26061 // TEAM SPIDEY_FORCE</span>
@@ -22,10 +24,10 @@
     </a>
 
     <ul class="nav-links">
-      <li><a href="index.html" class="nav-link active">01 OVERVIEW</a></li>
-      <li><a href="dashboard.html" class="nav-link">02 COMMAND DECK</a></li>
-      <li><a href="researcher.html" class="nav-link">03 SCIENCE SCHEDULER</a></li>
-      <li><a href="admin.html" class="nav-link">04 ADMIN CONSOLE</a></li>
+      <li><a href="index.html" class="nav-link active">Overview</a></li>
+      <li><a href="dashboard.html" class="nav-link">Command Deck</a></li>
+      <li><a href="researcher.html" class="nav-link">Science Scheduler</a></li>
+      <li><a href="admin.html" class="nav-link">Admin</a></li>
     </ul>
 
     <div class="nav-status">
@@ -43,279 +45,53 @@
         <span class="badge-dot"></span>
         <span id="textMode">OPTIMAL DISPATCH</span>
       </div>
-      <button id="btnResetLoads" class="btn" title="Restore all loads to active ONLINE state">
-        ↺ Restore
+      <button id="btnResetLoads" class="btn" title="Restore all loads to active ONLINE state">Restore loads
       </button>
-      <button id="btnEmergencyShed" class="btn btn-danger" title="Emergency priority shedding of P2 and P3 assets">
-        🚨 Emergency Shed
+      <button id="btnEmergencyShed" class="btn btn-danger" title="Emergency priority shedding of P2 and P3 assets">Emergency shed
       </button>
     </div>
   </header>
 
   <!-- MAIN APP CONTAINER -->
-  <main class="app-container">
-    <!-- HERO EXPEDITION BANNER -->
-    <div class="card" style="background: linear-gradient(135deg, rgba(21,29,45,0.95) 0%, rgba(13,19,31,0.98) 100%); border-left: 4px solid var(--glacier); padding: 28px 32px;">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
-        <div style="max-width: 800px;">
-          <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--glacier); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">
-            Smart India Hackathon SIH 26061 // Autonomous Polar Microgrid Platform
-          </div>
-          <h1 style="font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 12px;">
-            Next-Gen Autonomous Energy Intelligence for Extreme Polar Research Stations
-          </h1>
-          <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.6;">
-            BOREAS Polar Energy AI ensures uninterrupted life-support survivability across Antarctic research stations by combining Betz aerodynamic wind modeling, sub-zero enhanced bi-facial solar forecasting, 3-tier emergency load shedding, and predictive green energy window scheduling for heavy scientific operations.
-          </p>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          <a href="dashboard.html" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.85rem;">
-            Launch Command Deck ➔
-          </a>
-          <a href="researcher.html" class="btn" style="padding: 10px 20px; font-size: 0.85rem;">
-            Open Science Scheduler
-          </a>
-        </div>
+  <main class="app-container overview-page">
+    <section class="polar-hero" aria-labelledby="heroTitle">
+      <div class="hero-copy">
+        <p class="eyebrow">SIH 26061 / Polar energy intelligence</p>
+        <h1 id="heroTitle">Energy for<br>the edge of<br><em>the world.</em></h1>
+        <p class="hero-description">AI-driven energy management for polar research stations.<br>Protect life support. Make more room for discovery.</p>
+        <div class="hero-actions"><a class="btn btn-primary" href="dashboard.html">Open command center <span aria-hidden="true">&#8599;</span></a><a class="btn" href="researcher.html">Science scheduler <span aria-hidden="true">&#8594;</span></a></div>
       </div>
-    </div>
-
-    <!-- QUICK TELEMETRY OVERVIEW CARDS -->
-    <div class="kpi-grid">
-      <div class="kpi-card kpi-battery">
-        <div class="kpi-label">
-          <span>Active Station BESS</span>
-          <span class="kpi-icon">🔋</span>
-        </div>
-        <div class="kpi-value" id="kpiBattery">85.0 kWh (53%)</div>
-        <div class="power-flow-bar">
-          <div class="power-flow-fill" style="width: 53%; background: var(--emerald);"></div>
-        </div>
-        <div class="kpi-subtext">LiFePO4 Conditioning: +15.0°C Nominal</div>
+      <div class="hero-field" aria-hidden="true"><span class="field-cross">+</span><div class="field-coordinate">90&#176; S / ANTARCTICA</div><p>Built for the conditions<br>that change everything.</p><span class="field-line"></span><small>PREDICT / OPTIMIZE / PROTECT</small></div>
+      <div class="hero-caption"><span>01 / Mission overview</span><span>Spidey_Force &middot; Smart India Hackathon 2026</span></div>
+    </section>
+    <section aria-labelledby="energySnapshotTitle">
+      <div class="section-heading"><h2 id="energySnapshotTitle">Your station, at a glance.</h2><span class="section-note">Current simulation &middot; <span id="overviewStationName">Selected station</span></span></div>
+      <div class="kpi-grid overview-metrics">
+        <div class="kpi-card"><div class="kpi-label">Battery reserve</div><div class="kpi-value" id="kpiBattery">--</div><div class="kpi-subtext">Available energy / state of charge</div></div>
+        <div class="kpi-card"><div class="kpi-label">Renewable output</div><div class="kpi-value" id="kpiRenewable">--</div><div class="kpi-subtext">Combined wind and solar</div></div>
+        <div class="kpi-card"><div class="kpi-label">Station demand</div><div class="kpi-value" id="kpiDemand">--</div><div class="kpi-subtext">Active priority loads</div></div>
+        <div class="kpi-card"><div class="kpi-label">Survival horizon</div><div class="kpi-value" id="valSafeHours">--</div><div class="kpi-subtext">Backend station runtime estimate</div></div>
       </div>
-
-      <div class="kpi-card kpi-wind">
-        <div class="kpi-label">
-          <span>Renewable Generation</span>
-          <span class="kpi-icon">💨</span>
-        </div>
-        <div class="kpi-value" id="kpiRenewable">16.4 kW</div>
-        <div class="power-flow-bar">
-          <div class="power-flow-fill" style="width: 68%; background: var(--glacier);"></div>
-        </div>
-        <div class="kpi-subtext">Wind: 10.3 kW | Solar: 6.1 kW</div>
+    </section>
+    <section id="stationNetwork" aria-labelledby="stationTitle">
+      <div class="section-heading"><div><p class="eyebrow">Connected research</p><h2 id="stationTitle">One mission. Across the ice.</h2></div><span class="section-note">Select a station to open its command deck</span></div>
+      <div id="stationDiscovery" class="station-grid" aria-live="polite"><p class="text-muted">Connecting to the station network...</p></div>
+    </section>
+    <section aria-labelledby="capabilitiesTitle">
+      <div class="section-heading"><div><p class="eyebrow">Explore the platform</p><h2 id="capabilitiesTitle">Clarity. From forecast to action.</h2></div><span class="section-note">Tools for a resilient research station</span></div>
+      <div class="feature-grid">
+        <a class="feature-card" href="dashboard.html" ><span class="feature-index">01 / <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 18 10 8l4 6 6-10M14 4h6v6"/></svg></span><h3>Energy command</h3><p>A complete energy picture</p><div class="card-reveal">Generation, battery reserve and demand in one live view.<span>Explore <span aria-hidden="true">&#8599;</span></span></div></a>
+        <a class="feature-card" href="researcher.html#greenWindowsTimeline" ><span class="feature-index">02 / <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 18 10 8l4 6 6-10M14 4h6v6"/></svg></span><h3>Energy forecasting</h3><p>Plan around the conditions</p><div class="card-reveal">Explore renewable surplus windows for scientific operations.<span>Explore <span aria-hidden="true">&#8599;</span></span></div></a>
+        <a class="feature-card" href="researcher.html" ><span class="feature-index">03 / <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 18 10 8l4 6 6-10M14 4h6v6"/></svg></span><h3>Science scheduler</h3><p>Give discovery its window</p><div class="card-reveal">Match experiment energy and duration to available surplus.<span>Explore <span aria-hidden="true">&#8599;</span></span></div></a>
+        <a class="feature-card" href="dashboard.html#equipmentSignatureList" ><span class="feature-index">04 / <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 18 10 8l4 6 6-10M14 4h6v6"/></svg></span><h3>Equipment health</h3><p>Find the unexpected</p><div class="card-reveal">Inspect live signatures, power deviations and recommended actions.<span>Explore <span aria-hidden="true">&#8599;</span></span></div></a>
+        <a class="feature-card" href="dashboard.html#survivabilityPanel" ><span class="feature-index">05 / <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 18 10 8l4 6 6-10M14 4h6v6"/></svg></span><h3>Priority protection</h3><p>Keep the essentials running</p><div class="card-reveal">Understand protected loads and station survival horizons.<span>Explore <span aria-hidden="true">&#8599;</span></span></div></a>
+        <a class="feature-card" href="#voiceModal" data-open-advisor><span class="feature-index">06 / <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 18 10 8l4 6 6-10M14 4h6v6"/></svg></span><h3>AI & voice advisor</h3><p>Ask. Understand. Act.</p><div class="card-reveal">Discuss station operations with the existing local AI copilot.<span>Explore <span aria-hidden="true">&#8599;</span></span></div></a>
       </div>
-
-      <div class="kpi-card kpi-demand">
-        <div class="kpi-label">
-          <span>Station Load Demand</span>
-          <span class="kpi-icon">⚡</span>
-        </div>
-        <div class="kpi-value" id="kpiDemand">25.1 kW</div>
-        <div class="power-flow-bar">
-          <div class="power-flow-fill" style="width: 58%; background: var(--amber);"></div>
-        </div>
-        <div class="kpi-subtext">P1 Life Support: 14.0 kW (Locked)</div>
-      </div>
-
-      <div class="kpi-card kpi-net">
-        <div class="kpi-label">
-          <span>Autonomy Runway</span>
-          <span class="kpi-icon">⏱️</span>
-        </div>
-        <div class="kpi-value text-emerald" id="valSafeHours">48.2 hrs</div>
-        <div class="power-flow-bar">
-          <div class="power-flow-fill" style="width: 82%; background: #a855f7;"></div>
-        </div>
-        <div class="kpi-subtext">Isolated P1 Runtime: >120 hrs</div>
-      </div>
-    </div>
-
-    <!-- POLAR EXPEDITION RESEARCH STATIONS GRID -->
-    <div class="section-heading" style="margin-top: 10px; margin-bottom: 14px;">
-      <span style="font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; text-transform: uppercase;">
-        Antarctic Station Deployments (Active Network)
-      </span>
-      <span class="badge badge-info">4 STATIONS ONLINE</span>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
-      <!-- Station 1: Maitri -->
-      <div class="card" style="border-top: 3px solid var(--glacier); cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-01'); window.location.href='dashboard.html';">
-        <div class="card-header">
-          <span class="card-title">🇮🇳 Station Maitri (ST-01)</span>
-          <span class="badge badge-normal">PRIMARY BASE</span>
-        </div>
-        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
-          Coord: 70°45′57″S 11°44′09″E // Queen Maud Land
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">BESS Reserve:</span>
-            <span class="text-emerald">160.0 kWh Capacity</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Wind Turbines:</span>
-            <span>2x 15 kW Aerodynamic</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Bi-facial PV:</span>
-            <span>22 kW Vertical Ground-mount</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Secondary Genset:</span>
-            <span>45 kW Fast-Crank Diesel</span>
-          </div>
-        </div>
-        <div style="margin-top: 16px;">
-          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
-            Open Station Command ➔
-          </a>
-        </div>
-      </div>
-
-      <!-- Station 2: Bharati -->
-      <div class="card" style="border-top: 3px solid #38bdf8; cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-02'); window.location.href='dashboard.html';">
-        <div class="card-header">
-          <span class="card-title">🇮🇳 Station Bharati (ST-02)</span>
-          <span class="badge badge-normal">ACTIVE</span>
-        </div>
-        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
-          Coord: 69°24′28″S 76°11′14″E // Larsemann Hills
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">BESS Reserve:</span>
-            <span class="text-emerald">200.0 kWh Capacity</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Wind Turbines:</span>
-            <span>3x 12 kW Low-Temp Blades</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Bi-facial PV:</span>
-            <span>30 kW Coastal Array</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Secondary Genset:</span>
-            <span>60 kW Emergency Genset</span>
-          </div>
-        </div>
-        <div style="margin-top: 16px;">
-          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
-            Open Station Command ➔
-          </a>
-        </div>
-      </div>
-
-      <!-- Station 3: Amundsen-Scott -->
-      <div class="card" style="border-top: 3px solid #f59e0b; cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-03'); window.location.href='dashboard.html';">
-        <div class="card-header">
-          <span class="card-title">🇺🇸 Amundsen-Scott (ST-03)</span>
-          <span class="badge badge-normal">ACTIVE</span>
-        </div>
-        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
-          Coord: 90°00′00″S 0°00′00″E // Geographic South Pole
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">BESS Reserve:</span>
-            <span class="text-emerald">300.0 kWh Thermal Bank</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Extreme Wind:</span>
-            <span>4x 20 kW Arctic Cutout</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Bi-facial PV:</span>
-            <span>40 kW Summer Array</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Secondary Genset:</span>
-            <span>120 kW Heavy Genset</span>
-          </div>
-        </div>
-        <div style="margin-top: 16px;">
-          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
-            Open Station Command ➔
-          </a>
-        </div>
-      </div>
-
-      <!-- Station 4: Concordia -->
-      <div class="card" style="border-top: 3px solid #a855f7; cursor: pointer;" onclick="localStorage.setItem('polar_station_id','ST-04'); window.location.href='dashboard.html';">
-        <div class="card-header">
-          <span class="card-title">🇫🇷🇮🇹 Concordia Base (ST-04)</span>
-          <span class="badge badge-normal">ACTIVE</span>
-        </div>
-        <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px; font-family: var(--font-mono);">
-          Coord: 75°06′00″S 123°20′00″E // Dome C Plateau (3,233m)
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem;">
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">BESS Reserve:</span>
-            <span class="text-emerald">180.0 kWh High-Altitude</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Thin-Air Wind:</span>
-            <span>2x 15 kW High Air Density</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Bi-facial PV:</span>
-            <span>25 kW High Plateau PV</span>
-          </div>
-          <div class="flex-between">
-            <span style="color: var(--text-muted);">Secondary Genset:</span>
-            <span>50 kW Multi-Fuel Genset</span>
-          </div>
-        </div>
-        <div style="margin-top: 16px;">
-          <a href="dashboard.html" class="btn btn-primary" style="width: 100%; justify-content: center;">
-            Open Station Command ➔
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- CORE PLATFORM CAPABILITIES SECTION -->
-    <div class="card" style="margin-top: 16px;">
-      <div class="card-header">
-        <span class="card-title">Core Autonomous Intelligence Architecture (SIH 26061)</span>
-        <span class="card-badge">PRODUCTION-READY MULTI-ENGINE</span>
-      </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; font-size: 0.8rem;">
-        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
-          <div style="font-weight: 700; color: var(--glacier); margin-bottom: 6px;">💨 Aerodynamic Wind Betz Modeling</div>
-          <p style="color: var(--text-muted); font-size: 0.74rem;">
-            Computes aerodynamic air power $P = 0.5 \cdot \rho \cdot A \cdot v^3 \cdot C_p$ taking sub-zero dense air ($\rho = 1.34\text{ kg/m}^3$) into account, with automated cut-in (3 m/s), rated (12 m/s), and pitch brake cutoff (25 m/s).
-          </p>
-        </div>
-
-        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
-          <div style="font-weight: 700; color: #facc15; margin-bottom: 6px;">☀️ Sub-Zero Boosted Bi-facial Solar</div>
-          <p style="color: var(--text-muted); font-size: 0.74rem;">
-            Models vertical Antarctic bi-facial PV panels with ground albedo amplification and sub-zero photovoltaic cell efficiency coefficient (+0.35%/°C below 25°C baseline).
-          </p>
-        </div>
-
-        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
-          <div style="font-weight: 700; color: var(--emerald); margin-bottom: 6px;">🛡️ 3-Tier Protected Shedding</div>
-          <p style="color: var(--text-muted); font-size: 0.74rem;">
-            Categorizes loads into P1 (Life Support & Habitat Thermal locked against shedding), P2 (Scientific drill & spectrometers), and P3 (Drone bays and telemetry repeaters shed first).
-          </p>
-        </div>
-
-        <div style="background: var(--bg-surface-elevated); padding: 14px; border-radius: var(--radius-sm);">
-          <div style="font-weight: 700; color: #fb923c; margin-bottom: 6px;">🔬 Green Energy Window Allocation</div>
-          <p style="color: var(--text-muted); font-size: 0.74rem;">
-            Enables station researchers to queue high-draw experiments (e.g. Ice-Core Deep Drill) into optimal renewable surplus windows to guarantee zero diesel generator consumption.
-          </p>
-        </div>
-      </div>
-    </div>
+    </section>
   </main>
 
   <!-- FLOATING VOICE COPILOT -->
-  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
+  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11v1a6 6 0 0 0 12 0v-1M12 18v3m-4 0h8"/></svg></button>
   <div id="voiceModal" class="voice-modal">
     <div class="voice-header">
       <div style="display:flex; align-items:center; gap:8px;">

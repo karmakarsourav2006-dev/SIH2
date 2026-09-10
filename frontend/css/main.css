@@ -5,47 +5,51 @@
 
 :root {
   /* Color Architecture */
-  --bg-deep: #090d16;
-  --bg-main: #0d131f;
-  --bg-surface: #151d2d;
-  --bg-surface-elevated: #1a2538;
-  --bg-surface-active: #223048;
+  --bg-deep: #101923;
+  --bg-main: #101923;
+  --bg-surface: rgba(24,38,49,.88);
+  --bg-surface-elevated: #22333d;
+  --bg-surface-active: #293e48;
 
-  --border-subtle: #1e293b;
-  --border-strong: #2e3e58;
-  --border-glow: #38bdf8;
+  --border-subtle: #30434d;
+  --border-strong: #49606a;
+  --border-glow: #79aeb8;
 
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-main: #f1f5f4;
+  --text-muted: #a9bfc2;
+  --text-dim: #8fa6aa;
 
   /* Tactical Accents */
-  --glacier: #38bdf8;
-  --glacier-soft: rgba(56, 189, 248, 0.12);
-  --glacier-glow: 0 0 16px rgba(56, 189, 248, 0.25);
+  --glacier: #79aeb8;
+  --glacier-soft: rgba(121,174,184,.12);
+  --glacier-glow: none;
 
-  --emerald: #10b981;
-  --emerald-soft: rgba(16, 185, 129, 0.14);
-  --emerald-glow: 0 0 16px rgba(16, 185, 129, 0.25);
+  --emerald: #82ae95;
+  --emerald-soft: rgba(111,155,131,.14);
+  --emerald-glow: none;
 
-  --amber: #f59e0b;
-  --amber-soft: rgba(245, 158, 11, 0.14);
+  --amber: #d5ac78;
+  --amber-soft: rgba(197,154,98,.14);
 
-  --crimson: #ef4444;
-  --crimson-soft: rgba(239, 68, 68, 0.18);
-  --crimson-glow: 0 0 20px rgba(239, 68, 68, 0.35);
+  --crimson: #cf8082;
+  --crimson-soft: rgba(182,95,97,.14);
+  --crimson-glow: none;
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Consolas", "Monaco", "SF Mono", "Courier New", monospace;
 
   /* Radii & Shadows */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-sm: 7px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
   --radius-full: 9999px;
 
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 12px 32px rgba(5,14,20,.18);
+  --pine-green: var(--emerald);
+  --ochre-amber: var(--amber);
+  --terracotta: var(--crimson);
+  --motion-ease: cubic-bezier(.2,.75,.25,1);
 }
 
 * {

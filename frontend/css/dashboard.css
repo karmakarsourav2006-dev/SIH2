@@ -864,3 +864,19 @@ input:disabled + .slider-toggle {
 }
 
 
+/* Scoped operational feedback; decorative background layers are untouched. */
+.priority-protection { color: var(--glacier); font: 600 .72rem/1.8 var(--font-mono); margin-top: 12px; overflow-wrap: anywhere; }
+.advisor-quick-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+.advisor-quick-actions .btn { font-size: .65rem; padding: 5px 8px; }
+.research-workspace > .card { min-width: 0; }
+@media (max-width: 900px) { .research-workspace { grid-template-columns: minmax(0, 1fr) !important; } }
+.survivability-panel.critical .priority-protection { color: var(--amber); }
+.load-anomaly { background: rgba(245, 158, 11, .07); }
+.load-anomaly td:first-child { border-left: 2px solid var(--amber); }
+#activityTableBody td:last-child > div { flex-wrap: wrap; }
+#greenWindowsTimeline > p { grid-column: 1 / -1; }
+@media (prefers-reduced-motion: no-preference) {
+  .kpi-grid .kpi-card, #greenWindowsTimeline .card { transition: transform 220ms ease, border-color 220ms ease; }
+  .kpi-grid .kpi-card:hover, #greenWindowsTimeline .card:hover { transform: translateY(-3px) scale(1.01); border-color: var(--glacier); }
+  .btn:hover { transform: translateY(-1px); }
+}

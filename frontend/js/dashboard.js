@@ -3,10 +3,12 @@
  * Real-time Telemetry, Digital Twin State, Relay Matrix, Survivability Dials & Anomaly Stream
  */
 
-import { apiFetch, GlobalState, subscribeState, showToast } from './app.js';
+import { apiFetch, GlobalState, subscribeState, showToast, escapeHtml, simulationInputs } from './app.js';
 import { speakText } from './voice.js';
 
 let updateTimer = null;
+let evaluating = false;
+let evaluationQueued = false;
 let currentTelemetry = {
   wind_mps: 12.0,
   lux: 350.0,
@@ -16,8 +18,9 @@ let currentTelemetry = {
 };
 
 export function initDashboard() {
+  Object.assign(currentTelemetry, simulationInputs());
   bindSliders();
-  bindRelayControls();
+  // Header relay actions are already bound once by app.js.
   subscribeState(() => {
     refreshDashboard();
   });
@@ -42,10 +45,14 @@ function bindSliders() {
     const el = document.getElementById(s.id);
     const textEl = document.getElementById(s.valId);
     if (!el) return;
+    el.value = currentTelemetry[s.key];
+    if (textEl) textEl.textContent = `${currentTelemetry[s.key].toFixed(1)}${s.unit}`;
 
     el.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       currentTelemetry[s.key] = val;
+      sessionStorage.setItem(`polar_inputs_${GlobalState.stationId}`, JSON.stringify(currentTelemetry));
+      if (evaluating) evaluationQueued = true;
       if (textEl) {
         textEl.textContent = `${val.toFixed(1)}${s.unit}`;
       }
@@ -62,6 +69,10 @@ function bindSliders() {
  * Call Digital Twin API to evaluate state under current conditions
  */
 export async function evaluateMicrogrid() {
+  clearTimeout(updateTimer);
+  if (evaluating) { evaluationQueued = true; return; }
+  evaluating = true;
+  const stationId = GlobalState.stationId;
   try {
     const payload = {
       ...currentTelemetry,
@@ -74,10 +85,18 @@ export async function evaluateMicrogrid() {
     });
 
     if (res && res.ok && res.state) {
+      if (stationId !== GlobalState.stationId || evaluationQueued) return;
+      sessionStorage.setItem(`polar_inputs_${stationId}`, JSON.stringify(payload));
+      GlobalState.isCritical = res.state.is_critical;
       updateUIWithState(res.state);
+      setText('telemetryStatus', 'LIVE ENERGY FLOW');
     }
   } catch (err) {
     console.warn("Digital Twin evaluation error:", err);
+    setText('telemetryStatus', 'TELEMETRY UNAVAILABLE — values may be stale');
+  } finally {
+    evaluating = false;
+    if (evaluationQueued) { evaluationQueued = false; evaluateMicrogrid(); }
   }
 }
 
@@ -95,7 +114,7 @@ function updateUIWithState(state) {
   const lux = (w.lux !== undefined) ? w.lux : (state.lux || 350.0);
 
   if (pillTemp) {
-    const isLive = state.live_weather && state.live_weather.is_live;
+    const isLive = false; // This view evaluates user-controlled simulation inputs.
     pillTemp.textContent = `${isLive ? '● ' : ''}Temp: ${Number(temp).toFixed(1)}°C`;
     pillTemp.title = isLive ? `Live OpenWeather: ${state.live_weather.description || 'Antarctic telemetry'}` : 'Microgrid telemetry';
   }
@@ -112,7 +131,7 @@ function updateUIWithState(state) {
       textMode.textContent = 'SURVIVAL CRITICAL';
     } else {
       badgeMode.className = 'mode-badge nominal';
-      textMode.textContent = 'OPTIMAL DISPATCH';
+      textMode.textContent = state.mode;
     }
   }
 
@@ -149,7 +168,7 @@ function updateUIWithState(state) {
     const pct = clamped / maxScale;
     const offset = 377 - (377 * pct);
     gaugeSvg.style.strokeDashoffset = offset;
-    gaugeSvg.className = `gauge-progress ${safeHours < 12 ? 'crit' : safeHours < 24 ? 'warn' : ''}`;
+    gaugeSvg.setAttribute('class', `gauge-progress ${safeHours < 12 ? 'crit' : safeHours < 24 ? 'warn' : ''}`);
   }
 
   // Survivability Panel Border
@@ -163,6 +182,18 @@ function updateUIWithState(state) {
   }
 
   // 5. Automatic Emergency Voice Alerts (Requirement 8)
+  const status = document.getElementById('survStatusBadge');
+  if (status) {
+    status.textContent = state.mode;
+    status.className = `badge ${state.is_critical ? 'badge-critical' : 'badge-normal'}`;
+  }
+  const priorities = document.getElementById('priorityProtection');
+  if (priorities) priorities.textContent = [1, 2, 3].map(priority => {
+    const loads = state.loads.filter(l => l.priority === priority);
+    const online = loads.filter(l => l.status === 'ONLINE').length;
+    const label = !loads.length ? 'NO LOADS' : online === loads.length ? (priority === 1 ? 'PROTECTED' : 'ONLINE') : online ? 'LIMITED' : (priority === 2 ? 'PAUSED' : 'SHED');
+    return `P${priority} ${['', 'CRITICAL', 'SCIENCE', 'AUXILIARY'][priority]}: ${label}`;
+  }).join('  ·  ');
   if (state.auto_voice_alert && (state.severity === 'CRITICAL' || state.severity === 'EMERGENCY')) {
     if (window._lastAutoVoiceAlert !== state.auto_voice_alert) {
       window._lastAutoVoiceAlert = state.auto_voice_alert;
@@ -183,7 +214,12 @@ function updateUIWithState(state) {
 
 function setText(id, text) {
   const el = document.getElementById(id);
-  if (el) el.textContent = text;
+  if (el && el.textContent !== text) {
+    el.textContent = text;
+    if (el.matches('.kpi-value, .gauge-center-val') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      el.animate([{opacity: .55}, {opacity: 1}], {duration: 220});
+    }
+  }
 }
 
 /**
@@ -208,6 +244,7 @@ async function renderRelays(loads) {
     const tr = document.createElement('tr');
     const isOnline = load.status === 'ONLINE';
     const isP1 = load.priority === 1;
+    tr.classList.toggle('load-anomaly', isOnline && load.is_surge);
 
     const priorityBadge = isP1
       ? '<span class="relay-p1-tag">P1 LIFE-CRITICAL</span>'
@@ -221,14 +258,14 @@ async function renderRelays(loads) {
 
     tr.innerHTML = `
       <td>
-        <strong>${load.name}</strong>
+        <strong>${escapeHtml(load.name)}</strong>
         <div style="font-size:0.68rem; color:var(--text-dim);">ID: ${load.id}</div>
       </td>
       <td>${priorityBadge}</td>
       <td>${load.nominal_kw.toFixed(1)} kW</td>
       <td>
         <span class="${load.live_kw > load.nominal_kw * 1.2 ? 'text-amber' : ''}">
-          ${load.live_kw.toFixed(1)} kW
+          ${(isOnline ? load.live_kw : 0).toFixed(1)} kW ${isOnline && load.is_surge ? '⚠ ANOMALY' : ''}
         </span>
       </td>
       <td>${statusBadge}</td>
@@ -352,7 +389,7 @@ function renderAnomalies(anomalies, emergencyEvents) {
     html += `
       <div class="terminal-line">
         <span class="terminal-time">[${nowTime}]</span>
-        <span class="terminal-msg crit">🚨 [EVENT] ${evt}</span>
+        <span class="terminal-msg">[EVENT] ${escapeHtml(evt)}</span>
       </div>
     `;
   });
@@ -361,8 +398,10 @@ function renderAnomalies(anomalies, emergencyEvents) {
     html += `
       <div class="terminal-line">
         <span class="terminal-time">[${nowTime}]</span>
-        <span class="terminal-msg ${ano.severity === 'CRITICAL' ? 'crit' : 'warn'}">
-          ⚠️ [${ano.severity}] ${ano.load_name}: Current ${ano.live_kw} kW vs Nominal ${ano.nominal_kw} kW (+${ano.ratio_pct}% surge). Cause: ${ano.fault_classification}
+        <span class="terminal-msg ${ano.urgency === 'CRITICAL' ? 'crit' : 'warn'}">
+          ⚠ [ANOMALY / ${escapeHtml(ano.urgency)}] ${escapeHtml(ano.name)}: Expected ${ano.nominal_kw} kW · Current ${ano.live_kw} kW · Deviation +${ano.surge_pct}%.<br>
+          Probable cause: ${escapeHtml(ano.description)}<br>
+          Recommended action: ${escapeHtml(ano.recommended_action)}
         </span>
       </div>
     `;

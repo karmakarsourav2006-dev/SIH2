@@ -3,12 +3,16 @@
  * Green Energy Surplus Windows, Experiment Queue, and AI Allocation Advisor
  */
 
-import { apiFetch, GlobalState, subscribeState, showToast } from './app.js';
+import { apiFetch, GlobalState, subscribeState, showToast, escapeHtml, simulationInputs } from './app.js';
+
+let windowRequest = 0;
+let activityRequest = 0;
 
 export function initResearcher() {
   loadGreenWindows();
   loadActivities();
   bindForm();
+  document.getElementById('btnFindWindow')?.addEventListener('click', () => loadGreenWindows());
   subscribeState(() => {
     loadActivities();
   });
@@ -20,17 +24,24 @@ export function initResearcher() {
 /**
  * Load and render Green Energy Surplus Windows
  */
-async function loadGreenWindows() {
+async function loadGreenWindows(activity = null) {
   const container = document.getElementById('greenWindowsTimeline');
   if (!container) return;
+  const request = ++windowRequest;
+  const required = Number(activity?.required_kwh ?? document.getElementById('inpActKwh').value);
+  const duration = Number(activity?.duration_hrs ?? document.getElementById('inpActDuration').value);
+  if (!(required > 0 && duration > 0)) { showToast('Enter positive energy and duration values', 'warning'); return; }
+  container.textContent = 'ANALYZING RENEWABLE WINDOW...';
 
   try {
-    const data = await apiFetch('/api/optimization/green-windows?required_kwh=25.0&duration_hrs=3.5');
+    const data = await apiFetch(`/api/optimization/green-windows?required_kwh=${required}&duration_hrs=${duration}`);
+    if (request !== windowRequest) return;
     if (!data || !data.windows) return;
 
-    let html = '';
+    let html = `<p class="text-muted">${escapeHtml(activity?.name || 'Proposed experiment')} · ${required} kWh / ${duration} hrs. Backend simulated forecast; slots do not reserve a schedule.</p>`;
+    if (!data.windows.length) html += '<p class="text-amber">DELAY — No supported surplus window for this energy requirement.</p>';
     data.windows.forEach(w => {
-      const isGreen = w.is_green;
+      const isGreen = true; // This endpoint returns only qualifying windows.
       const cardClass = isGreen ? 'green-slot-active' : 'green-slot-deficit';
       const badge = isGreen
         ? '<span class="badge badge-normal">SURPLUS WINDOW</span>'
@@ -39,14 +50,15 @@ async function loadGreenWindows() {
       html += `
         <div class="card ${cardClass}" style="border-left: 4px solid ${isGreen ? 'var(--emerald)' : 'var(--border-subtle)'};">
           <div class="card-header">
-            <span class="card-title">${w.time_label}</span>
+            <span class="card-title">${escapeHtml(w.slot)}</span>
             ${badge}
           </div>
           <div style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: ${isGreen ? 'var(--emerald)' : 'var(--text-dim)'};">
             ${w.surplus_kw > 0 ? '+' : ''}${w.surplus_kw.toFixed(1)} kW Renewable Margin
           </div>
           <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">
-            ${w.recommendation}
+            SAFE TO RUN · Confidence: ${escapeHtml(w.confidence)}<br>
+            Expected carbon saving: ${w.carbon_saving_kg} kg · Required power: ${data.avg_kw_needed} kW
           </div>
         </div>
       `;
@@ -55,6 +67,7 @@ async function loadGreenWindows() {
     container.innerHTML = html;
   } catch (err) {
     console.warn("Error fetching green windows:", err);
+    if (request === windowRequest) container.textContent = 'FORECAST UNAVAILABLE — Try finding a window again.';
   }
 }
 
@@ -64,9 +77,15 @@ async function loadGreenWindows() {
 async function loadActivities() {
   const tbody = document.getElementById('activityTableBody');
   if (!tbody) return;
+  const request = ++activityRequest;
+  const stationId = GlobalState.stationId;
 
   try {
-    const data = await apiFetch(`/api/activities?station_id=${GlobalState.stationId}&surplus_kw=8.5`);
+    const telemetry = await apiFetch('/api/telemetry', {method: 'POST', body: JSON.stringify({station_id: stationId, ...simulationInputs()})});
+    const state = telemetry.state;
+    const surplus = state.is_critical ? 0 : Math.max(0, state.total_renewables_kw - state.active_demand_kw);
+    const data = await apiFetch(`/api/activities?station_id=${encodeURIComponent(stationId)}&surplus_kw=${surplus}`);
+    if (request !== activityRequest || stationId !== GlobalState.stationId) return;
     if (!data || !data.activities) return;
 
     tbody.innerHTML = '';
@@ -89,7 +108,8 @@ async function loadActivities() {
 
       tr.innerHTML = `
         <td>
-          <strong>${act.name}</strong>
+          <strong>${escapeHtml(act.name)}</strong>
+          <div class="text-muted">Priority: P${act.priority}</div>
           <div style="font-size:0.68rem; color:var(--text-dim);">ID: ${act.id} // Window: ${act.recommended_slot || 'Dynamic'}</div>
         </td>
         <td>
@@ -104,6 +124,7 @@ async function loadActivities() {
         </td>
         <td style="text-align: right;">
           <div style="display:flex; gap:6px; justify-content:flex-end;">
+            <button class="btn" data-action="window">FIND OPTIMAL WINDOW</button>
             ${!isRunning && !isCompleted ? `
               <button class="btn btn-success" data-action="run" data-id="${act.id}" style="padding:4px 8px; font-size:0.7rem;">▶ Run</button>
             ` : ''}
@@ -116,6 +137,10 @@ async function loadActivities() {
       `;
 
       // Event handlers for actions
+      tr.querySelector('[data-action="window"]').addEventListener('click', () => {
+        loadGreenWindows(act);
+        document.getElementById('greenWindowsTimeline').scrollIntoView({behavior: 'smooth', block: 'center'});
+      });
       const btnRun = tr.querySelector('[data-action="run"]');
       if (btnRun) {
         btnRun.addEventListener('click', () => updateSchedule(act.id, 'run'));
@@ -133,6 +158,7 @@ async function loadActivities() {
     });
   } catch (err) {
     console.warn("Error fetching activities:", err);
+    if (request === activityRequest) tbody.innerHTML = '<tr><td colspan="6">LOAD PRIORITY EVALUATION UNAVAILABLE — refresh to retry.</td></tr>';
   }
 }
 

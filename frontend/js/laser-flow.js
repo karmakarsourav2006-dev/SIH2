@@ -10,7 +10,10 @@ void main(){vec2 uv=(gl_FragCoord.xy-.5*uSize)/min(uSize.x,uSize.y);float t=uTim
   function color(hex) { let c=(hex||'#38bdf8').replace('#',''); if(c.length===3)c=c.split('').map(x=>x+x).join(''); const n=parseInt(c,16)||0x38bdf8; return [((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255]; }
   function initLaserFlow(container, options) {
     if (!container) return () => {};
-    if (container.__laserFlowCleanup) return container.__laserFlowCleanup;
+    if (container.__laserFlowCleanup && container.querySelector('.laser-flow-canvas')) return container.__laserFlowCleanup;
+    container.__laserFlowCleanup?.();
+    container.querySelectorAll('.laser-flow-canvas').forEach(canvas => canvas.remove());
+    container.classList.remove('laser-flow-fallback');
     const opts=Object.assign({color:'#38bdf8', dpr:1.25},options||{}); const canvas=document.createElement('canvas'); canvas.className='laser-flow-canvas'; container.appendChild(canvas);
     let gl=null, program=null, raf=0, ro=null, start=performance.now(), mouse=[.5,.5], disposed=false;
     try {
@@ -23,18 +26,25 @@ void main(){vec2 uv=(gl_FragCoord.xy-.5*uSize)/min(uSize.x,uSize.y);float t=uTim
       const move=e=>{const r=container.getBoundingClientRect();mouse=[(e.clientX-r.left)/Math.max(r.width,1),1-(e.clientY-r.top)/Math.max(r.height,1)];};
       const frame=now=>{if(disposed)return;raf=requestAnimationFrame(frame);if(document.hidden)return;gl.uniform1f(timeLoc,(now-start)/1000);gl.uniform2f(sizeLoc,canvas.width,canvas.height);gl.uniform2f(mouseLoc,mouse[0],mouse[1]);gl.uniform3f(colorLoc,rgb[0],rgb[1],rgb[2]);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3);};
       container.addEventListener('pointermove',move,{passive:true});window.addEventListener('resize',resize,{passive:true});ro=new ResizeObserver(resize);ro.observe(container);resize();frame(performance.now());
-      const cleanup=()=>{if(disposed)return;disposed=true;cancelAnimationFrame(raf);ro&&ro.disconnect();container.removeEventListener('pointermove',move);window.removeEventListener('resize',resize);gl.deleteProgram(program);canvas.remove();container.__laserFlowCleanup=null;};
+      const contextLost=e=>{e.preventDefault();cancelAnimationFrame(raf);};
+      const contextRestored=()=>{cleanup();initLaserFlow(container,opts);};
+      canvas.addEventListener('webglcontextlost',contextLost);
+      canvas.addEventListener('webglcontextrestored',contextRestored);
+      const cleanup=()=>{if(disposed)return;disposed=true;cancelAnimationFrame(raf);ro&&ro.disconnect();container.removeEventListener('pointermove',move);window.removeEventListener('resize',resize);canvas.removeEventListener('webglcontextlost',contextLost);canvas.removeEventListener('webglcontextrestored',contextRestored);gl.deleteBuffer(buffer);gl.deleteProgram(program);canvas.remove();container.__laserFlowCleanup=null;};
       container.__laserFlowCleanup=cleanup;
       return cleanup;
     } catch (e) { console.warn('LaserFlow disabled:',e.message); canvas.remove(); container.classList.add('laser-flow-fallback'); return ()=>{disposed=true;cancelAnimationFrame(raf);}; }
   }
   window.initLaserFlow=initLaserFlow;
-  function bootstrap() {
+  function ensureLaserFlow() {
     const container=document.getElementById('laserFlowBackground');
     if (!container) return;
-    const cleanup=initLaserFlow(container,{color:'#38bdf8',dpr:1.25});
-    window.addEventListener('pagehide',cleanup,{once:true});
+    initLaserFlow(container,{color:'#38bdf8',dpr:1.25});
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',bootstrap,{once:true});
-  else bootstrap();
+  window.addEventListener('pageshow',ensureLaserFlow);
+  window.addEventListener('pagehide',event=>{
+    if (!event.persisted) document.getElementById('laserFlowBackground')?.__laserFlowCleanup?.();
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',ensureLaserFlow,{once:true});
+  else ensureLaserFlow();
 })();
