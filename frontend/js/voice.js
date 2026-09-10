@@ -169,3 +169,6 @@ function speakText(text) {
 document.addEventListener('DOMContentLoaded', () => {
   initVoiceAssistant();
 });
+
+
+

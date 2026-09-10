@@ -2,7 +2,7 @@
  * BOREAS AI Microgrid - Operational Advisor & Voice Terminal
  */
 
-const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8000';
+const API_BASE = (window.location.port === '3000') ? 'http://127.0.0.1:8000' : window.location.origin;
 
 const inputQuery = document.getElementById('inputAiQuery');
 const btnSubmit = document.getElementById('btnSubmitQuery');
@@ -104,4 +104,7 @@ function renderAdvisorResponse(data) {
     btnVoiceSpeak.style.display = 'inline-flex';
   }
 }
+
+
+
 

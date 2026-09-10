@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polar Energy AI // Admin Console (SIH 26061)</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <!-- TOP NAVIGATION -->
+  <header class="command-nav">
+    <a href="index.html" class="nav-brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-text">
+        <span class="brand-name">POLAR ENERGY AI</span>
+        <span class="brand-sub">ADMIN CONSOLE // SIH 26061</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="index.html" class="nav-link">01 OVERVIEW</a></li>
+      <li><a href="dashboard.html" class="nav-link">02 COMMAND DECK</a></li>
+      <li><a href="researcher.html" class="nav-link">03 SCIENCE SCHEDULER</a></li>
+      <li><a href="admin.html" class="nav-link active">04 ADMIN CONSOLE</a></li>
+    </ul>
+
+    <div class="nav-status">
+      <select id="globalStationSelect" style="font-size:0.75rem; padding: 5px 10px;">
+        <option value="ST-01" selected>ST-01: Station Maitri</option>
+        <option value="ST-02">ST-02: Station Bharati</option>
+        <option value="ST-03">ST-03: Amundsen-Scott</option>
+        <option value="ST-04">ST-04: Concordia</option>
+      </select>
+      <span id="liveClock" class="badge badge-info">UTC --:--:-- // POLAR</span>
+      <div id="badgeMode" class="badge badge-normal">
+        <span class="badge-dot"></span>
+        <span id="textMode">SYSADMIN ACTIVE</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="app-container">
+    <!-- HERO INTRO -->
+    <div class="card" style="border-left: 4px solid var(--amber);">
+      <div class="card-header">
+        <span class="card-title">⚙️ Station Microgrid Hardware Configuration & Emergency Overrides</span>
+        <span class="badge badge-warning">ELEVATED PRIVILEGES</span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.84rem; line-height: 1.6;">
+        Configure hardware electrical thresholds, BESS cell bank capacities, secondary genset limits, and execute manual system-wide emergency contactor overrides to prevent station blackout.
+      </p>
+    </div>
+
+    <!-- TWO-COLUMN HARDWARE CONFIG & MANUAL OVERRIDES -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <!-- HARDWARE CALIBRATION -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Station Hardware Capacities</span>
+          <span class="card-badge" id="dispStationName">Station Maitri (ST-01)</span>
+        </div>
+        <form id="formHardwareConfig">
+          <div class="form-group">
+            <label class="form-label" for="inpBatteryCapacity">BESS Maximum Energy Capacity (kWh)</label>
+            <input type="number" id="inpBatteryCapacity" step="1" min="20" max="1000" value="160" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpGenRating">Secondary Diesel Genset Peak Rating (kW)</label>
+            <input type="number" id="inpGenRating" step="1" min="10" max="250" value="45" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inpThermalRating">Base Habitat Thermal Core Rating (kW)</label>
+            <input type="number" id="inpThermalRating" step="0.5" min="5" max="100" value="14.0" required>
+          </div>
+
+          <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 10px; font-family: var(--font-mono);">
+            LLM Advisory Engine: <strong id="dispLlmProvider" class="text-glacier">Ollama / Deterministic Rule Engine</strong>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 14px; justify-content: center; padding: 10px;">
+            💾 Save Hardware Configurations
+          </button>
+        </form>
+      </div>
+
+      <!-- EMERGENCY OVERRIDES & FACTORY RESET -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Emergency Blackout Prevention & Contactors</span>
+          <span class="card-badge">MANUAL INTERVENTION</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div>
+            <div style="font-weight: 700; font-size: 0.8rem; color: var(--crimson); margin-bottom: 4px;">
+              🚨 Priority Load Shedding Trigger
+            </div>
+            <p style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 8px;">
+              Instantly trips all P2 (Science) and P3 (Aux) contactor relays across the station bus to isolate battery power exclusively for P1 Life Support & Habitat Thermal Core.
+            </p>
+            <button id="btnAdminShed" class="btn btn-danger" style="width: 100%; justify-content: center; padding: 10px;">
+              TRIGGER EMERGENCY LOAD SHED (P2/P3)
+            </button>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+            <div style="font-weight: 700; font-size: 0.8rem; color: var(--emerald); margin-bottom: 4px;">
+              ↺ Contactor Bus Restoration
+            </div>
+            <p style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 8px;">
+              Re-energizes all shed relay circuits back to ONLINE status once sufficient renewable surplus or diesel stability is re-established.
+            </p>
+            <button id="btnAdminRestore" class="btn btn-success" style="width: 100%; justify-content: center; padding: 10px;">
+              RESTORE ALL RELAY CONTACTORS
+            </button>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+            <div style="font-weight: 700; font-size: 0.8rem; color: var(--amber); margin-bottom: 4px;">
+              ⚠️ Factory Database Clean Reset
+            </div>
+            <p style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 8px;">
+              Wipes the SQLite database and re-seeds all 4 polar research stations, standard 5 loads, and baseline weather records for hackathon judging demonstration.
+            </p>
+            <button id="btnAdminResetDb" class="btn" style="width: 100%; justify-content: center; padding: 10px; border-color: var(--amber); color: var(--amber);">
+              RE-SEED CLEAN DATABASE
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SYSTEM TELEMETRY AUDIT TRAIL TABLE -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Station Microgrid Telemetry Historical Audit Trail</span>
+        <span class="card-badge">PERSISTED SQLITE LOGS</span>
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="relay-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Station</th>
+              <th>Solar kW</th>
+              <th>Wind kW</th>
+              <th>Demand kW</th>
+              <th>Battery State</th>
+              <th>Net Power Margin</th>
+            </tr>
+          </thead>
+          <tbody id="auditLogsTableBody">
+            <!-- Populated dynamically by admin.js -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- FLOATING VOICE COPILOT -->
+  <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
+  <div id="voiceModal" class="voice-modal">
+    <div class="voice-header">
+      <span>AI TACTICAL COPILOT // OLLAMA FALLBACK</span>
+      <button id="btnCloseVoice" class="btn" style="padding: 2px 6px; font-size: 0.7rem;">✕</button>
+    </div>
+    <div id="voiceChatBox" class="voice-chat-box">
+      <div class="voice-msg assistant">
+        Admin Copilot initialized. System thresholds and relay contactor controls ready.
+      </div>
+    </div>
+    <form id="formVoiceInput" class="voice-input-row">
+      <input type="text" id="inpVoiceText" placeholder="Ask AI Copilot..." style="flex:1;">
+      <button type="submit" class="btn btn-primary" style="padding: 6px 12px;">➔</button>
+    </form>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="command-footer">
+    <div>POLAR STATION MICROGRID & INTELLIGENCE PLATFORM (SIH 26061) // TEAM SPIDEY_FORCE</div>
+    <div>STATION ADMINISTRATION // FASTAPI + SQLite DATABASE ENGINE</div>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/admin.js"></script>
+  <script type="module" src="js/voice.js"></script>
+</body>
+</html>
+

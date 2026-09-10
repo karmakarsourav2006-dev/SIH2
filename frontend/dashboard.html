@@ -209,6 +209,18 @@
           </div>
         </div>
 
+        <div class="card equipment-signature-card">
+          <div class="card-header"><span class="card-title">Equipment Energy Signatures &amp; Health</span><span class="card-badge">LIVE MALFUNCTION MONITOR</span><button id="simulateEquipmentMalfunction" class="btn-polar equipment-simulate-btn" type="button">SIMULATE MALFUNCTION</button></div>
+          <div id="equipmentSignatureList" class="equipment-signature-list"><span class="text-muted">Loading equipment signatures…</span></div>
+        </div>
+
+        <div id="equipmentModal" class="equipment-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="equipmentModalTitle">
+          <div class="equipment-modal-card">
+            <div class="equipment-modal-header"><span id="equipmentModalTitle" class="card-title">EQUIPMENT DIAGNOSTIC</span><button id="equipmentModalClose" class="equipment-modal-close" type="button" aria-label="Close">×</button></div>
+            <div id="equipmentModalBody" class="equipment-modal-body"></div>
+          </div>
+        </div>
+
         <!-- What-If Stress Scenarios Card -->
         <div class="card">
           <div class="card-header">
@@ -370,6 +382,7 @@
   <script type="module" src="js/simulation.js"></script>
   <script type="module" src="js/map.js"></script>
   <script type="module" src="js/voice.js"></script>
+  <script type="module" src="js/equipment.js"></script>
 </body>
 </html>
 

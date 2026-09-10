@@ -1,140 +1,58 @@
 import sqlite3
 from backend.config import settings
-from backend.database.seed_data import (
-    SEED_STATIONS,
-    SEED_LOADS,
-    SEED_ACTIVITIES,
-    SEED_USERS,
-    SEED_ALERTS
-)
 
-def init_database(db_path: str = None):
-    target_path = db_path or settings.DB_PATH
-    conn = sqlite3.connect(target_path)
+DB_PATH = settings.DB_PATH
+
+EQUIPMENT = [
+    ("EQ-FREEZER-01", "Medical Vaccine & Blood Freezer", "MEDICAL", "P1", 2.0, 15.0, 0.8, "NORMAL"),
+    ("EQ-HEATER-01", "Habitat Primary Glycol Heater", "HEATING", "P1", 8.5, 10.0, 1.0, "NORMAL"),
+    ("EQ-WATER-01", "Greywater Recycling Pump Unit", "LIFE_SUPPORT", "P2", 3.2, 20.0, 0.6, "NORMAL"),
+    ("EQ-LAB-SPECTRO", "Mass Spectrometer Rig 2", "LAB_EXPERIMENT", "P3", 4.5, 15.0, 0.5, "NORMAL"),
+    ("EQ-RAD-RADAR", "Upper Atmosphere Lidar Radar", "LAB_EXPERIMENT", "P3", 6.0, 25.0, 0.4, "NORMAL")
+]
+
+def init_database():
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # 1. Stations Table
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS stations (
-            id TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS equipment_signatures (
+            device_id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            coordinates TEXT,
-            country TEXT,
-            battery_capacity_kwh REAL NOT NULL,
-            generator_rating_kw REAL NOT NULL,
-            base_thermal_rating_kw REAL NOT NULL,
-            status TEXT NOT NULL
-        )
-    """)
-
-    # 2. Weather Records Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS weather (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            station_id TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            temp_c REAL NOT NULL,
-            wind_mps REAL NOT NULL,
-            lux REAL NOT NULL,
-            blizzard_severity REAL NOT NULL
-        )
-    """)
-
-    # 3. Energy Telemetry Records Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS energy_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            station_id TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            solar_kw REAL NOT NULL,
-            wind_kw REAL NOT NULL,
-            gen_kw REAL NOT NULL,
-            active_demand_kw REAL NOT NULL,
-            battery_soc_pct REAL NOT NULL,
-            net_flow_kw REAL NOT NULL,
-            mode TEXT NOT NULL
-        )
-    """)
-
-    # 4. Load Relays Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS loads (
-            id TEXT PRIMARY KEY,
-            station_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            priority INT NOT NULL,
+            subsystem TEXT NOT NULL,
+            priority_tier TEXT NOT NULL,
             nominal_kw REAL NOT NULL,
-            live_kw REAL NOT NULL,
-            status TEXT NOT NULL
+            tolerance_percent REAL NOT NULL,
+            duty_cycle REAL DEFAULT 1.0,
+            status TEXT DEFAULT 'NORMAL'
         )
     """)
 
-    # 5. Scientific Activities Table
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS activities (
-            id TEXT PRIMARY KEY,
-            station_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            required_kwh REAL NOT NULL,
-            duration_hrs REAL NOT NULL,
-            deadline_hrs REAL,
-            priority INT NOT NULL,
-            approval_status TEXT NOT NULL,
-            execution_status TEXT NOT NULL,
-            recommended_slot TEXT
-        )
-    """)
-
-    # 6. Alerts Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS alerts (
+        CREATE TABLE IF NOT EXISTS equipment_telemetry_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            station_id TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            severity TEXT NOT NULL,
-            category TEXT NOT NULL,
-            message TEXT NOT NULL,
-            root_cause TEXT,
-            acknowledged INT DEFAULT 0
+            device_id TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            observed_kw REAL NOT NULL,
+            deviation_percent REAL NOT NULL,
+            anomaly_score REAL NOT NULL,
+            flagged INTEGER DEFAULT 0,
+            diagnosis TEXT,
+            FOREIGN KEY(device_id) REFERENCES equipment_signatures(device_id)
         )
     """)
 
-    # 7. Users Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            role TEXT NOT NULL,
-            callsign TEXT,
-            station_id TEXT
-        )
-    """)
-
-    # Seed data if tables are empty
-    cursor.execute("SELECT COUNT(*) FROM stations")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO stations VALUES (?, ?, ?, ?, ?, ?, ?, ?)", SEED_STATIONS)
-
-    cursor.execute("SELECT COUNT(*) FROM loads")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO loads VALUES (?, ?, ?, ?, ?, ?, ?)", SEED_LOADS)
-
-    cursor.execute("SELECT COUNT(*) FROM activities")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO activities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", SEED_ACTIVITIES)
-
-    cursor.execute("SELECT COUNT(*) FROM users")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO users VALUES (?, ?, ?, ?, ?)", SEED_USERS)
-
-    cursor.execute("SELECT COUNT(*) FROM alerts")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO alerts (station_id, severity, category, message, root_cause, acknowledged) VALUES (?, ?, ?, ?, ?, ?)", SEED_ALERTS)
+    cursor.executemany("""
+        INSERT OR REPLACE INTO equipment_signatures
+        (device_id, name, subsystem, priority_tier, nominal_kw,
+         tolerance_percent, duty_cycle, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, EQUIPMENT)
 
     conn.commit()
     conn.close()
 
+    print("Database initialized! 5 equipment signatures registered.")
+
 if __name__ == "__main__":
     init_database()
-    print("Database initialized and seeded successfully.")
-

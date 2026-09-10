@@ -2,7 +2,7 @@
  * BOREAS AI Microgrid - Telemetry & Relays Engine
  */
 
-const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8000';
+const API_BASE = (window.location.port === '3000') ? 'http://127.0.0.1:8000' : window.location.origin;
 
 let isTelemetryPending = false;
 let currentTelemetryData = null;
@@ -292,4 +292,7 @@ function renderDiagnostics(d) {
 export function getCurrentTelemetry() {
   return currentTelemetryData;
 }
+
+
+
 

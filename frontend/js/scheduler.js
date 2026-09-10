@@ -2,7 +2,7 @@
  * BOREAS AI Microgrid - Research Experiment Optimizer
  */
 
-const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8000';
+const API_BASE = (window.location.port === '3000') ? 'http://127.0.0.1:8000' : window.location.origin;
 
 const container = document.getElementById('experimentsContainer');
 
@@ -116,4 +116,7 @@ async function scheduleExperiment(id, action) {
     console.error('Failed to schedule experiment:', err);
   }
 }
+
+
+
 
