@@ -22,6 +22,7 @@ from backend.api import (
     ai_chat_router,
     voice_router
 )
+from backend.routers.assistant import router as assistant_router
 
 from backend.services.digital_twin import DigitalTwin
 from backend.services.energy_service import EnergyService
@@ -57,7 +58,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all 11 blueprint routers
+# Include blueprint routers
 app.include_router(stations_router)
 app.include_router(weather_router)
 app.include_router(emergency_router)
@@ -68,7 +69,9 @@ app.include_router(activities_router)
 app.include_router(alerts_router)
 app.include_router(admin_router)
 app.include_router(ai_chat_router)
+app.include_router(assistant_router)
 app.include_router(voice_router)
+
 
 # Compatibility root endpoints for frontend telemetry & load switches
 class TelemetryCompat(BaseModel):

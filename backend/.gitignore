@@ -1,5 +1,8 @@
 node_modules/
 .env
+.env.*
+!.env.example
+*.env
 dist/
 __pycache__/
-*.pycgit 
+*.pyc

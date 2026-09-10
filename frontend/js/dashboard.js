@@ -89,9 +89,19 @@ function updateUIWithState(state) {
   const pillTemp = document.getElementById('pillTemp');
   const pillWind = document.getElementById('pillWind');
   const pillSolar = document.getElementById('pillSolar');
-  if (pillTemp) pillTemp.textContent = `Temp: ${state.temp_c.toFixed(1)}°C`;
-  if (pillWind) pillWind.textContent = `Wind: ${state.wind_mps.toFixed(1)} m/s`;
-  if (pillSolar) pillSolar.textContent = `Solar: ${state.lux.toFixed(0)} Lux`;
+  const w = state.weather || state.live_weather || {};
+  const temp = (w.temp_c !== undefined) ? w.temp_c : (state.temp_c || -28.0);
+  const wind = (w.wind_mps !== undefined) ? w.wind_mps : (state.wind_mps || 12.0);
+  const lux = (w.lux !== undefined) ? w.lux : (state.lux || 350.0);
+
+  if (pillTemp) {
+    const isLive = state.live_weather && state.live_weather.is_live;
+    pillTemp.textContent = `${isLive ? '● ' : ''}Temp: ${Number(temp).toFixed(1)}°C`;
+    pillTemp.title = isLive ? `Live OpenWeather: ${state.live_weather.description || 'Antarctic telemetry'}` : 'Microgrid telemetry';
+  }
+  if (pillWind) pillWind.textContent = `Wind: ${Number(wind).toFixed(1)} m/s`;
+  if (pillSolar) pillSolar.textContent = `Solar: ${Number(lux).toFixed(0)} Lux`;
+
 
   // 2. Mode Badge
   const badgeMode = document.getElementById('badgeMode');

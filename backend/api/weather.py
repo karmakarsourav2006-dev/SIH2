@@ -5,9 +5,14 @@ from backend.services.weather_service import WeatherService
 router = APIRouter(prefix="/api/weather", tags=["Weather"])
 
 @router.get("")
-def get_weather(station_id: str = "ST-01"):
-    weather = WeatherService.get_latest_weather(station_id)
+def get_weather(station_id: str = "ST-01", refresh: bool = True):
+    weather = WeatherService.get_latest_weather(station_id=station_id, refresh_live=refresh)
     return {"ok": True, "weather": weather}
+
+@router.get("/forecast")
+def get_weather_forecast(station_id: str = "ST-01", bypass_cache: bool = False):
+    forecast = WeatherService.get_forecast(station_id=station_id, bypass_cache=bypass_cache)
+    return {"ok": True, "forecast": forecast}
 
 @router.post("")
 def post_weather(input_data: WeatherInput):
@@ -19,4 +24,5 @@ def post_weather(input_data: WeatherInput):
         blizzard_severity=input_data.blizzard_severity
     )
     return {"ok": True, "recorded": record}
+
 

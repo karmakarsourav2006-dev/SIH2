@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from backend.services.station_service import StationService
 from backend.services.energy_service import EnergyService
+from backend.services.weather_service import WeatherService
 from backend.forecasting.model_manager import ModelManager
 from backend.optimization.energy_optimizer import EnergyOptimizer
 from backend.anomaly.detector import AnomalyDetector
@@ -13,12 +14,23 @@ class DigitalTwin:
     def evaluate_state(
         cls,
         station_id: str = "ST-01",
-        wind_mps: float = 12.0,
-        lux: float = 350.0,
-        temp_c: float = -28.0,
+        wind_mps: Optional[float] = 12.0,
+        lux: Optional[float] = 350.0,
+        temp_c: Optional[float] = -28.0,
         battery_kwh: float = 85.0,
-        gen_kw: float = 0.0
+        gen_kw: float = 0.0,
+        use_live_weather: bool = False
     ) -> Dict[str, Any]:
+        live_weather = WeatherService.get_latest_weather(station_id, refresh_live=True)
+        if use_live_weather and live_weather:
+            wind_mps = float(live_weather.get("wind_mps", wind_mps or 12.0))
+            lux = float(live_weather.get("lux", lux or 350.0))
+            temp_c = float(live_weather.get("temp_c", temp_c or -28.0))
+        else:
+            wind_mps = 12.0 if wind_mps is None else float(wind_mps)
+            lux = 350.0 if lux is None else float(lux)
+            temp_c = -28.0 if temp_c is None else float(temp_c)
+
         station = StationService.get_station_by_id(station_id) or {
             "id": station_id,
             "name": "Maitri Station",
@@ -127,6 +139,7 @@ class DigitalTwin:
                 "lux": lux,
                 "temp_c": temp_c
             },
+            "live_weather": live_weather,
             "generation": {
                 "solar_kw": forecast["solar_kw"],
                 "wind_kw": forecast["wind_kw"],
