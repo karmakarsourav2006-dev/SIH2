@@ -3,9 +3,10 @@
  * Global State, Network Client, Station Selector, Mission Clock & Toasts
  */
 
-export const API_BASE = (window.location.port === '3000' || window.location.protocol === 'file:')
+export const API_BASE = (window.location.port !== '8000' || window.location.protocol === 'file:')
   ? 'http://127.0.0.1:8000'
-  : window.location.origin;
+  : '';
+
 
 // Global State
 export const GlobalState = {
@@ -137,6 +138,114 @@ export function initAppShell() {
 
   // 3. Populate and bind global station selector
   initStationSelector();
+
+  // 4. Bind Global Header Controls (Emergency Shed, Restore, Environmental Telemetry Pills)
+  initHeaderControls();
+}
+
+/**
+ * Global Header Controls (Emergency Shed, Restore, and live telemetry updates)
+ */
+function initHeaderControls() {
+  const btnReset = document.getElementById('btnResetLoads');
+  if (btnReset) {
+    btnReset.addEventListener('click', async () => {
+      const stationId = GlobalState.stationId || 'ST-01';
+      try {
+        const res = await apiFetch(`/api/emergency/restore?station_id=${encodeURIComponent(stationId)}`, {
+          method: 'POST',
+          body: JSON.stringify({ station_id: stationId })
+        });
+        if (res && res.ok) {
+          showToast(`All ${res.total_loads || 'station'} relays restored to ONLINE`, 'success');
+          updateGlobalTelemetryPills();
+          notifySubscribers();
+        }
+      } catch (err) {
+        console.error('[Header] Restore relays failed:', err);
+        showToast('Failed to restore relays', 'crit');
+      }
+    });
+  }
+
+  const btnEmergencyShed = document.getElementById('btnEmergencyShed');
+  if (btnEmergencyShed) {
+    btnEmergencyShed.addEventListener('click', async () => {
+      const stationId = GlobalState.stationId || 'ST-01';
+      try {
+        const res = await apiFetch(`/api/emergency/shed?station_id=${encodeURIComponent(stationId)}`, {
+          method: 'POST',
+          body: JSON.stringify({ station_id: stationId })
+        });
+        if (res && res.ok) {
+          const count = res.shedded_assets?.length || 0;
+          const msg = count > 0 
+            ? `EMERGENCY SHED TRIGGERED: Shed ${count} assets (${res.shedded_assets.join(', ')})`
+            : `EMERGENCY SHED: No non-critical P2/P3 loads active to shed.`;
+          showToast(msg, 'crit');
+          updateGlobalTelemetryPills();
+          notifySubscribers();
+        } else {
+          showToast('Emergency shedding rejected by controller', 'warning');
+        }
+      } catch (err) {
+        console.error('[Header] Emergency shed request failed:', err);
+        showToast(`Emergency shedding failed (${err.message || 'connection error'})`, 'crit');
+      }
+    });
+  }
+
+  // Initial and periodic header telemetry update
+  updateGlobalTelemetryPills();
+  setInterval(updateGlobalTelemetryPills, 5000);
+}
+
+/**
+ * Fetch telemetry and update global header pills and mode badge
+ */
+export async function updateGlobalTelemetryPills() {
+  const pillTemp = document.getElementById('pillTemp');
+  const pillWind = document.getElementById('pillWind');
+  const pillSolar = document.getElementById('pillSolar');
+  const badgeMode = document.getElementById('badgeMode');
+  const textMode = document.getElementById('textMode');
+
+  // If none of these exist on the current page, skip
+  if (!pillTemp && !pillWind && !pillSolar && !badgeMode) return;
+
+  try {
+    const stationId = GlobalState.stationId || 'ST-01';
+    const res = await apiFetch('/api/telemetry', {
+      method: 'POST',
+      body: JSON.stringify({
+        station_id: stationId,
+        wind_mps: 12.0,
+        lux: 350.0,
+        temp_c: -28.0,
+        battery_kwh: 85.0,
+        gen_kw: 0.0
+      })
+    });
+
+    if (res && res.ok && res.state) {
+      const s = res.state;
+      if (pillTemp && s.temp_c !== undefined) pillTemp.textContent = `Temp: ${s.temp_c.toFixed(1)}°C`;
+      if (pillWind && s.wind_mps !== undefined) pillWind.textContent = `Wind: ${s.wind_mps.toFixed(1)} m/s`;
+      if (pillSolar && s.lux !== undefined) pillSolar.textContent = `Solar: ${s.lux.toFixed(0)} Lux`;
+
+      if (badgeMode && textMode) {
+        if (s.is_critical || s.mode === 'SURVIVAL CRITICAL') {
+          badgeMode.className = 'badge badge-critical';
+          textMode.textContent = 'SURVIVAL CRITICAL';
+        } else {
+          badgeMode.className = 'badge badge-normal';
+          textMode.textContent = s.mode === 'GREEN OPTIMIZATION' ? 'GREEN OPTIMIZATION' : 'OPTIMAL DISPATCH';
+        }
+      }
+    }
+  } catch (e) {
+    // Graceful fallback for background network jitter
+  }
 }
 
 /**
@@ -164,6 +273,7 @@ async function initStationSelector() {
           GlobalState.stationId = e.target.value;
           localStorage.setItem('polar_station_id', GlobalState.stationId);
           showToast(`Active base switched to: ${e.target.options[e.target.selectedIndex].text}`, 'info');
+          updateGlobalTelemetryPills();
           notifySubscribers();
         });
       }

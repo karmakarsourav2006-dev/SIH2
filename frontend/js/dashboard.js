@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, GlobalState, subscribeState, showToast } from './app.js';
+import { speakText } from './voice.js';
 
 let updateTimer = null;
 let currentTelemetry = {
@@ -88,9 +89,19 @@ function updateUIWithState(state) {
   const pillTemp = document.getElementById('pillTemp');
   const pillWind = document.getElementById('pillWind');
   const pillSolar = document.getElementById('pillSolar');
-  if (pillTemp) pillTemp.textContent = `Temp: ${state.temp_c.toFixed(1)}°C`;
-  if (pillWind) pillWind.textContent = `Wind: ${state.wind_mps.toFixed(1)} m/s`;
-  if (pillSolar) pillSolar.textContent = `Solar: ${state.lux.toFixed(0)} Lux`;
+  const w = state.weather || state.live_weather || {};
+  const temp = (w.temp_c !== undefined) ? w.temp_c : (state.temp_c || -28.0);
+  const wind = (w.wind_mps !== undefined) ? w.wind_mps : (state.wind_mps || 12.0);
+  const lux = (w.lux !== undefined) ? w.lux : (state.lux || 350.0);
+
+  if (pillTemp) {
+    const isLive = state.live_weather && state.live_weather.is_live;
+    pillTemp.textContent = `${isLive ? '● ' : ''}Temp: ${Number(temp).toFixed(1)}°C`;
+    pillTemp.title = isLive ? `Live OpenWeather: ${state.live_weather.description || 'Antarctic telemetry'}` : 'Microgrid telemetry';
+  }
+  if (pillWind) pillWind.textContent = `Wind: ${Number(wind).toFixed(1)} m/s`;
+  if (pillSolar) pillSolar.textContent = `Solar: ${Number(lux).toFixed(0)} Lux`;
+
 
   // 2. Mode Badge
   const badgeMode = document.getElementById('badgeMode');
@@ -151,12 +162,24 @@ function updateUIWithState(state) {
     }
   }
 
-  // 5. Anomalies & Diagnostics Terminal
+  // 5. Automatic Emergency Voice Alerts (Requirement 8)
+  if (state.auto_voice_alert && (state.severity === 'CRITICAL' || state.severity === 'EMERGENCY')) {
+    if (window._lastAutoVoiceAlert !== state.auto_voice_alert) {
+      window._lastAutoVoiceAlert = state.auto_voice_alert;
+      showToast(`[${state.severity}] ${state.auto_voice_alert}`, state.severity === 'EMERGENCY' ? 'crit' : 'warning');
+      speakText(state.auto_voice_alert);
+    }
+  } else if (state.severity === 'INFO' || state.severity === 'WARNING') {
+    window._lastAutoVoiceAlert = null;
+  }
+
+  // 6. Anomalies & Diagnostics Terminal
   renderAnomalies(state.anomalies || [], state.emergency_events || []);
 
-  // 6. Reload Relays table
+  // 7. Reload Relays table
   renderRelays(state.loads || []);
 }
+
 
 function setText(id, text) {
   const el = document.getElementById(id);
@@ -257,16 +280,18 @@ function bindRelayControls() {
   const btnReset = document.getElementById('btnResetLoads');
   if (btnReset) {
     btnReset.addEventListener('click', async () => {
+      const stationId = GlobalState.stationId || 'ST-01';
       try {
-        const res = await apiFetch('/api/emergency/restore', {
+        const res = await apiFetch(`/api/emergency/restore?station_id=${encodeURIComponent(stationId)}`, {
           method: 'POST',
-          body: JSON.stringify({ station_id: GlobalState.stationId })
+          body: JSON.stringify({ station_id: stationId })
         });
         if (res && res.ok) {
-          showToast('All station relays restored to ONLINE', 'success');
+          showToast(`All ${res.total_loads || 'station'} relays restored to ONLINE`, 'success');
           evaluateMicrogrid();
         }
       } catch (err) {
+        console.error('[Dashboard] Restore relays failed:', err);
         showToast('Failed to restore relays', 'crit');
       }
     });
@@ -275,17 +300,25 @@ function bindRelayControls() {
   const btnEmergencyShed = document.getElementById('btnEmergencyShed');
   if (btnEmergencyShed) {
     btnEmergencyShed.addEventListener('click', async () => {
+      const stationId = GlobalState.stationId || 'ST-01';
       try {
-        const res = await apiFetch('/api/emergency/shed', {
+        const res = await apiFetch(`/api/emergency/shed?station_id=${encodeURIComponent(stationId)}`, {
           method: 'POST',
-          body: JSON.stringify({ station_id: GlobalState.stationId })
+          body: JSON.stringify({ station_id: stationId })
         });
         if (res && res.ok) {
-          showToast(`EMERGENCY SHED TRIGGERED: ${res.shedded_assets.join(', ') || 'No non-critical loads active'}`, 'crit');
+          const count = res.shedded_assets?.length || 0;
+          const msg = count > 0 
+            ? `EMERGENCY SHED TRIGGERED: Shed ${count} assets (${res.shedded_assets.join(', ')})`
+            : `EMERGENCY SHED: No non-critical P2/P3 loads active to shed.`;
+          showToast(msg, 'crit');
           evaluateMicrogrid();
+        } else {
+          showToast('Emergency shedding rejected by controller', 'warning');
         }
       } catch (err) {
-        showToast('Emergency shedding failed', 'crit');
+        console.error('[Dashboard] Emergency shed request failed:', err);
+        showToast(`Emergency shedding failed (${err.message || 'connection error'})`, 'crit');
       }
     });
   }

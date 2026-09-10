@@ -12,6 +12,9 @@ export function initResearcher() {
   subscribeState(() => {
     loadActivities();
   });
+  window.addEventListener('polar:activitiesUpdated', () => {
+    loadActivities();
+  });
 }
 
 /**

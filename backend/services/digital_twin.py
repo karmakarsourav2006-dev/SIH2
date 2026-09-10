@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from backend.services.station_service import StationService
 from backend.services.energy_service import EnergyService
+from backend.services.weather_service import WeatherService
 from backend.forecasting.model_manager import ModelManager
 from backend.optimization.energy_optimizer import EnergyOptimizer
 from backend.anomaly.detector import AnomalyDetector
@@ -13,12 +14,23 @@ class DigitalTwin:
     def evaluate_state(
         cls,
         station_id: str = "ST-01",
-        wind_mps: float = 12.0,
-        lux: float = 350.0,
-        temp_c: float = -28.0,
+        wind_mps: Optional[float] = 12.0,
+        lux: Optional[float] = 350.0,
+        temp_c: Optional[float] = -28.0,
         battery_kwh: float = 85.0,
-        gen_kw: float = 0.0
+        gen_kw: float = 0.0,
+        use_live_weather: bool = False
     ) -> Dict[str, Any]:
+        live_weather = WeatherService.get_latest_weather(station_id, refresh_live=True)
+        if use_live_weather and live_weather:
+            wind_mps = float(live_weather.get("wind_mps", wind_mps or 12.0))
+            lux = float(live_weather.get("lux", lux or 350.0))
+            temp_c = float(live_weather.get("temp_c", temp_c or -28.0))
+        else:
+            wind_mps = 12.0 if wind_mps is None else float(wind_mps)
+            lux = 350.0 if lux is None else float(lux)
+            temp_c = -28.0 if temp_c is None else float(temp_c)
+
         station = StationService.get_station_by_id(station_id) or {
             "id": station_id,
             "name": "Maitri Station",
@@ -50,25 +62,28 @@ class DigitalTwin:
         net_flow = round(total_gen - active_demand, 2)
         soc_pct = round(max(0.0, min(100.0, (battery_kwh / battery_capacity) * 100.0)), 1)
 
-        # 2. Emergency Protocol
-        is_critical = soc_pct < 20.0 or (net_flow < -12.0 and gen_kw == 0.0)
-        mode = "SURVIVAL CRITICAL" if is_critical else "NORMAL RUN"
-        emergency_events = []
+        # 2. Deterministic 4-Tier Emergency Supervisor
+        from backend.services.emergency import EmergencySupervisor
+        safety = EmergencySupervisor.audit_station_safety(
+            station_id=station_id,
+            battery_kwh=battery_kwh,
+            battery_capacity_kwh=battery_capacity,
+            total_gen_kw=total_gen,
+            total_renewables_kw=total_renewables,
+            active_demand_kw=active_demand,
+            gen_kw=gen_kw,
+            wind_mps=wind_mps
+        )
+        mode = safety["mode"]
+        is_critical = safety["is_critical"]
+        severity = safety["severity"]
+        emergency_events = safety["events"]
+        auto_voice_alert = safety.get("auto_voice_alert")
+        loads = safety["loads"]
+        active_demand = safety["active_demand_kw"]
+        p1_demand = safety["p1_demand_kw"]
+        net_flow = safety["net_flow_kw"]
 
-        if is_critical:
-            # Auto-shed P3 and P2
-            with get_db() as conn:
-                conn.execute("UPDATE loads SET status = 'SHEDDED' WHERE station_id = ? AND priority IN (2, 3) AND status != 'SHEDDED'", (station_id,))
-                conn.execute("UPDATE loads SET status = 'ONLINE' WHERE station_id = ? AND priority = 1 AND status != 'ONLINE'", (station_id,))
-                conn.commit()
-
-            loads = EnergyService.get_station_loads(station_id)
-            active_demand = sum(float(l["live_kw"]) for l in loads if l.get("status") == "ONLINE")
-            net_flow = round(total_gen - active_demand, 2)
-
-            emergency_events.append("CRITICAL: Battery SoC < 20% or deficit exceeds tolerance with zero diesel support.")
-            emergency_events.append("AUTONOMOUS SHED: P3 Auxiliary drone/rover and P2 science systems isolated.")
-            emergency_events.append("RING-FENCED: P1 Habitat life-support, thermal core, and satellite comms secured.")
 
         # 3. Anomaly audit
         anomalies = AnomalyDetector.audit_loads(loads)
@@ -101,16 +116,30 @@ class DigitalTwin:
 
         return {
             "station": station,
+            "station_id": station_id,
             "mode": mode,
             "is_critical": is_critical,
+            "severity": severity,
+            "auto_voice_alert": auto_voice_alert,
             "soc_pct": soc_pct,
             "battery_kwh": battery_kwh,
             "battery_capacity_kwh": battery_capacity,
+            "temp_c": temp_c,
+            "wind_mps": wind_mps,
+            "lux": lux,
+            "solar_kw": forecast["solar_kw"],
+            "wind_kw": forecast["wind_kw"],
+            "total_renewables_kw": total_renewables,
+            "gen_kw": round(gen_kw, 2),
+            "total_generation_kw": total_gen,
+            "active_demand_kw": round(active_demand, 2),
+            "p1_demand_kw": round(p1_demand, 2),
             "weather": {
                 "wind_mps": wind_mps,
                 "lux": lux,
                 "temp_c": temp_c
             },
+            "live_weather": live_weather,
             "generation": {
                 "solar_kw": forecast["solar_kw"],
                 "wind_kw": forecast["wind_kw"],
@@ -126,7 +155,8 @@ class DigitalTwin:
             "net_flow_kw": net_flow,
             "survivability": {
                 "safe_runtime_hours": safe_runtime_hours,
-                "p1_isolated_hours": p1_isolated_hours
+                "p1_isolated_hours": p1_isolated_hours,
+                "fuel_days_left": round(max(0.0, 45.0 - (gen_kw * 0.1)), 1)
             },
             "dispatch": dispatch,
             "loads": loads,

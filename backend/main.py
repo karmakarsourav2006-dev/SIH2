@@ -23,6 +23,7 @@ from backend.api import (
     voice_router
     ,equipment_router
 )
+from backend.routers.assistant import router as assistant_router
 
 from backend.services.digital_twin import DigitalTwin
 from backend.services.energy_service import EnergyService
@@ -31,9 +32,16 @@ from pydantic import BaseModel
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_database()
+    import threading
+    try:
+        from backend.rag.research_rag import ResearchRAG
+        threading.Thread(target=ResearchRAG.index_documents, daemon=True).start()
+    except Exception as e:
+        print(f"[Polar AI] RAG initialization notice: {e}")
     await BackgroundScheduler.start()
     yield
     await BackgroundScheduler.stop()
+
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -51,7 +59,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all 11 blueprint routers
+# Include blueprint routers
 app.include_router(stations_router)
 app.include_router(weather_router)
 app.include_router(emergency_router)
@@ -62,8 +70,10 @@ app.include_router(activities_router)
 app.include_router(alerts_router)
 app.include_router(admin_router)
 app.include_router(ai_chat_router)
+app.include_router(assistant_router)
 app.include_router(voice_router)
 app.include_router(equipment_router)
+
 
 # Compatibility root endpoints for frontend telemetry & load switches
 class TelemetryCompat(BaseModel):
