@@ -30,9 +30,16 @@ from pydantic import BaseModel
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_database()
+    import threading
+    try:
+        from backend.rag.research_rag import ResearchRAG
+        threading.Thread(target=ResearchRAG.index_documents, daemon=True).start()
+    except Exception as e:
+        print(f"[Polar AI] RAG initialization notice: {e}")
     await BackgroundScheduler.start()
     yield
     await BackgroundScheduler.stop()
+
 
 app = FastAPI(
     title=settings.APP_NAME,

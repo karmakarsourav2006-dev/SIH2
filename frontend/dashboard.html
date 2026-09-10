@@ -345,16 +345,32 @@
   <button id="btnVoiceFab" class="voice-fab" title="AI Tactical Voice Copilot">🎙️</button>
   <div id="voiceModal" class="voice-modal">
     <div class="voice-header">
-      <span>AI TACTICAL COPILOT // OLLAMA FALLBACK</span>
-      <button id="btnCloseVoice" class="btn" style="padding: 2px 6px; font-size: 0.7rem;">✕</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span>POLAR AI COPILOT</span>
+        <span id="voiceStatusBadge" class="voice-status-badge standby">STANDBY</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button id="btnContinuousToggle" class="btn btn-auto-toggle active" title="Toggle Auto Conversational Mode">🔄 Auto</button>
+        <button id="btnStopVoice" class="btn btn-stop-voice" title="Stop Voice & Standing Down">⏹ Stop</button>
+        <button id="btnCloseVoice" class="btn" style="padding: 2px 6px; font-size: 0.7rem;" title="Close Window">✕</button>
+      </div>
     </div>
     <div id="voiceChatBox" class="voice-chat-box">
       <div class="voice-msg assistant">
         Polar Command Copilot online. Telemetry stream locked. What are your instructions, Commander?
       </div>
     </div>
+    <div id="voiceVisualizer" class="voice-visualizer standby">
+      <div class="wave-bars">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <span id="voiceVisualizerText" class="visualizer-label">Standby. Click mic to speak.</span>
+    </div>
     <form id="formVoiceInput" class="voice-input-row">
-      <input type="text" id="inpVoiceText" placeholder="Ask AI Copilot..." style="flex:1;">
+      <input type="text" id="inpVoiceText" placeholder="Ask AI Copilot or speak naturally..." style="flex:1;">
       <button type="submit" class="btn btn-primary" style="padding: 6px 12px;">➔</button>
     </form>
   </div>
