@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <script src="js/theme.js"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23101923%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2711%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3Cpath d=%27M5 16h22M16 5c-8 6-8 16 0 22 8-6 8-16 0-22%27 fill=%27none%27 stroke=%27%2379aeb8%27/%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Polar Energy AI // Science Mission Scheduler (SIH 26061)</title>
@@ -28,6 +29,11 @@
       <li><a href="dashboard.html" class="nav-link">Command Deck</a></li>
       <li><a href="researcher.html" class="nav-link active">Science Scheduler</a></li>
       <li><a href="admin.html" class="nav-link">Admin</a></li>
+      <li><button id="polarThemeToggle" class="btn theme-toggle" type="button" aria-label="Switch to Polar Night" aria-pressed="false">
+        <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+        <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></svg>
+        <span class="theme-day-label">Arctic Day</span><span class="theme-night-label">Polar Night</span>
+      </button></li>
     </ul>
 
     <div class="nav-status">
