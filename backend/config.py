@@ -33,6 +33,10 @@ class Settings(BaseModel):
     HOST: str = os.environ.get("HOST", "127.0.0.1")
     PORT: int = int(os.environ.get("PORT", 8000))
 
+    # Supabase browser configuration. Never place a service-role key here.
+    SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY", "")
+
     # Ollama LLM Configuration
     OLLAMA_URL: str = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.environ.get("OLLAMA_MODEL", "gemma3:270m")

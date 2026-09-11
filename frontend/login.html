@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071017">
+  <title>Polar Energy AI // Secure Access</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/laser-flow.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body class="auth-page">
+  <div id="laserFlowBackground" aria-hidden="true"></div>
+  <main class="auth-shell">
+    <section class="auth-brand-panel">
+      <a class="auth-brand" href="login.html" aria-label="Polar Energy AI home">
+        <span class="auth-brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12"/><path d="M4 16h24M16 4c-9 7-9 17 0 24 9-7 9-17 0-24Z"/><path d="m10 21 6-9 6 9Z"/></svg></span>
+        <span><span class="auth-brand-name">POLAR ENERGY AI</span><span class="auth-brand-sub">MISSION OPERATIONS PLATFORM // SIH 26061</span></span>
+      </a>
+      <div class="auth-intro">
+        <span class="auth-kicker">Secure station access</span>
+        <h1>Energy for the edge of the world.</h1>
+        <p>Operational intelligence for resilient polar research stations. Monitor the microgrid, protect life support and make more room for discovery.</p>
+      </div>
+      <div class="auth-meta">STATION NETWORK / AUTHORIZED PERSONNEL ONLY</div>
+    </section>
+    <section class="auth-card-wrap" aria-labelledby="authModeTitle">
+      <div class="auth-card">
+        <h2 id="authModeTitle">Welcome back</h2>
+        <p id="authModeCopy" class="auth-card-copy">Sign in to continue to mission operations.</p>
+        <form id="loginForm" novalidate>
+          <div class="auth-field"><label for="loginEmail">Email address</label><input id="loginEmail" name="email" type="email" autocomplete="email" required placeholder="operator@station.org"></div>
+          <div class="auth-field"><label for="loginPassword">Password</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password"></div>
+          <button id="loginSubmit" class="btn btn-primary auth-submit" type="submit">Sign in</button>
+          <div id="authMessage" class="auth-message" role="status" aria-live="polite" hidden></div>
+        </form>
+        <button id="authModeToggle" class="auth-mode" type="button">Create an account</button>
+        <p class="auth-note">Access is managed securely through Supabase Authentication. Your password is never stored by this application.</p>
+      </div>
+    </section>
+  </main>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/laser-flow.js"></script>
+</body>
+</html>

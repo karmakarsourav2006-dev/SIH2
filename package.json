@@ -2,10 +2,11 @@
   "name": "sih2-polar-station",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"python -m uvicorn backend.main:app --reload --port 8000\" \"live-server frontend --port=3000 --entry-file=frontend/dashboard.html\"",
+    "dev": "concurrently \"python -m uvicorn backend.main:app --reload --port 8000\" \"live-server frontend --port=3000 --entry-file=login.html\"",
     "start": "npm run dev"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "concurrently": "^8.2.2",
     "live-server": "^1.2.2"
   }

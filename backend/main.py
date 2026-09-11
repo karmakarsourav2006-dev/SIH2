@@ -115,7 +115,7 @@ FRONTEND_DIR = os.path.join(settings.BASE_DIR, "frontend")
 
 @app.get("/")
 def serve_index():
-    idx = os.path.join(FRONTEND_DIR, "index.html")
+    idx = os.path.join(FRONTEND_DIR, "login.html")
     if os.path.exists(idx):
         return FileResponse(idx)
     return {"status": "online", "message": "Polar Energy AI API Active"}
@@ -126,6 +126,18 @@ def serve_dashboard():
     if os.path.exists(dash):
         return FileResponse(dash)
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+@app.get("/login")
+def serve_login():
+    return FileResponse(os.path.join(FRONTEND_DIR, "login.html"))
+
+@app.get("/api/public-config")
+def public_config():
+    """Expose only browser-safe Supabase settings to the static frontend."""
+    return {
+        "supabaseUrl": settings.SUPABASE_URL,
+        "supabaseAnonKey": settings.SUPABASE_ANON_KEY,
+    }
 
 @app.get("/researcher")
 def serve_researcher():
@@ -149,6 +161,9 @@ if os.path.exists(FRONTEND_DIR):
         app.mount("/css", StaticFiles(directory=css_dir), name="css")
     if os.path.exists(js_dir):
         app.mount("/js", StaticFiles(directory=js_dir), name="js")
+    vendor_dir = os.path.join(FRONTEND_DIR, "vendor")
+    if os.path.exists(vendor_dir):
+        app.mount("/vendor", StaticFiles(directory=vendor_dir), name="vendor")
 
 if __name__ == "__main__":
     import uvicorn
